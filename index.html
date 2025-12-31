@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -9,28 +10,27 @@
     <style>
         body { background-color: #0b0b0b; color: white; }
         .tab-active { color: #ff4500; border-bottom: 3px solid #ff4500; }
-        .drama-card { background: #161616; border: 1px solid #222; }
+        .drama-card { background: #161616; border: 1px solid #222; border-radius: 12px; }
     </style>
 </head>
 <body class="max-w-md mx-auto min-h-screen border-x border-zinc-900 shadow-2xl">
 
     <div class="sticky top-0 z-50 bg-black">
-        <div class="aspect-video w-full bg-zinc-900 overflow-hidden">
+        <div class="aspect-video w-full bg-zinc-900">
             <video id="player" class="video-js vjs-fluid vjs-big-play-centered" playsinline></video>
         </div>
         
-        <div class="flex justify-around bg-zinc-950 border-b border-zinc-800 py-4 font-bold text-[11px] tracking-widest">
+        <div class="flex justify-around bg-zinc-950 border-b border-zinc-800 py-4 font-bold text-[11px] tracking-widest uppercase">
             <button onclick="loadTab('foryou')" id="tab-foryou" class="pb-1">FOR YOU</button>
             <button onclick="loadTab('theaters')" id="tab-theaters" class="pb-1 text-zinc-500">THEATERS</button>
         </div>
     </div>
 
     <div id="content" class="p-4 space-y-4 pb-24">
-        <div class="text-center py-20 text-zinc-600 text-sm italic">Menghubungkan ke API...</div>
+        <div class="text-center py-20 text-zinc-600 text-sm">Menghubungkan ke API...</div>
     </div>
 
     <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
     <script src="index.js"></script>
 </body>
 </html>
-
