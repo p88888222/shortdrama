@@ -1,8 +1,6 @@
 {
   "name": "netshort-app",
   "version": "1.0.0",
-  "description": "Aplikasi Nonton Drama Pendek",
-  "main": "index.html",
   "scripts": {
     "start": "npx serve -s ."
   },
