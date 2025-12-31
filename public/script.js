@@ -34,7 +34,7 @@ function renderGrid(dataObj) {
     const container = document.getElementById('mainContainer');
     const label = document.getElementById('sectionLabel');
 
-    // 1. Ambil Nama Konten (contentName) jika ada
+    // 1. Ambil Nama Konten (Misal: "Drama Viral")
     const contentName = dataObj?.contentName || "DRAMA TERBARU";
     label.innerText = contentName.toUpperCase();
 
@@ -48,23 +48,41 @@ function renderGrid(dataObj) {
 
     container.innerHTML = "";
     items.forEach(item => {
-        // Mapping Field berdasarkan struktur contentInfos
         const id = item.shortPlayId || item.bookId || item.id;
         const title = item.shortPlayName || item.bookName || item.title;
-        const cover = item.horizontalCover || item.coverWap || item.verticalCover || item.cover;
+        
+        // --- LOGIKA PERBAIKAN COVER (Prioritas shortPlayCover & groupShortPlayCover) ---
+        let rawCover = item.shortPlayCover || item.groupShortPlayCover || item.horizontalCover || item.coverWap || item.cover;
+        let finalCover = "";
+
+        if (rawCover) {
+            // Jika URL berupa path relatif (misal: /images/xxx.jpg), tambahkan domain API
+            if (rawCover.startsWith('http')) {
+                finalCover = rawCover;
+            } else {
+                // Pastikan domain ini sesuai dengan base API Anda
+                const domain = "https://api.sansekai.my.id";
+                finalCover = `${domain}${rawCover.startsWith('/') ? '' : '/'}${rawCover}`;
+            }
+        } else {
+            // Gambar cadangan jika semua field kosong
+            finalCover = 'https://via.placeholder.com/300x400?text=No+Cover';
+        }
+        // -----------------------------------------------------------------------------
 
         const div = document.createElement('div');
         div.className = "cursor-pointer animate-slideUp group";
         div.onclick = () => openDetail(id, title, item.shortPlayLabels || item.introduction);
         div.innerHTML = `
             <div class="aspect-[3/4] rounded-xl overflow-hidden bg-slate-800 mb-1 border border-white/5 shadow-lg group-active:scale-95 transition">
-                <img src="${cover}" class="w-full h-full object-cover" 
-                     onerror="this.src='https://via.placeholder.com/300x400?text=No+Cover'">
+                <img src="${finalCover}" class="w-full h-full object-cover" 
+                     onerror="this.src='https://via.placeholder.com/300x400?text=Error+Image'">
             </div>
             <h3 class="text-[9px] font-bold line-clamp-2 text-gray-400 px-1 leading-tight uppercase">${title}</h3>`;
         container.appendChild(div);
     });
 }
+
 
 // Fungsi openDetail dan playEp tetap sama seperti sebelumnya...
 async function openDetail(id, title, desc) {
