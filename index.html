@@ -9,7 +9,7 @@
     <style>
         body { background-color: #0b0b0b; color: white; font-family: sans-serif; }
         .tab-active { color: #ff4500; border-bottom: 3px solid #ff4500; font-weight: bold; }
-        .drama-card { background: #161616; border: 1px solid #222; border-radius: 12px; transition: 0.2s; }
+        .drama-card { background: #161616; border: 1px solid #222; border-radius: 12px; }
         .vjs-big-play-centered .vjs-big-play-button { background-color: #ff4500 !important; border: none !important; border-radius: 50% !important; }
     </style>
 </head>
@@ -19,7 +19,6 @@
         <div class="aspect-video w-full bg-zinc-900 overflow-hidden shadow-lg">
             <video id="main-player" class="video-js vjs-fluid vjs-big-play-centered" playsinline></video>
         </div>
-        
         <div class="flex justify-around bg-zinc-950 border-b border-zinc-800 py-4 font-bold text-[11px] tracking-widest uppercase">
             <button onclick="changeTab('foryou')" id="tab-foryou" class="pb-2">FOR YOU</button>
             <button onclick="changeTab('theaters')" id="tab-theaters" class="pb-2 text-zinc-500">THEATERS</button>
@@ -27,51 +26,43 @@
     </div>
 
     <div id="main-content" class="p-4 space-y-4 pb-24">
-        <div class="text-center py-20 text-zinc-600 text-sm animate-pulse">Menghubungkan ke API...</div>
+        <div class="text-center py-20 text-zinc-600 text-sm italic">Memuat data...</div>
     </div>
 
     <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
     <script>
-        // Menggunakan CORS Proxy "AllOrigins" melalui endpoint RAW untuk menghindari blokir browser
-        const PROXY = "https://api.allorigins.win/raw?url=";
+        // Gunakan proxy cloudflare worker sebagai alternatif yang lebih stabil
+        const PROXY = "https://corsproxy.io/?";
         const BASE_URL = "https://api.sansekai.my.id/api";
         
-        const player = videojs('main-player', { 
-            controls: true, 
-            autoplay: false, 
-            fluid: true
-        });
+        const player = videojs('main-player', { controls: true, autoplay: false, fluid: true });
 
         async function changeTab(tabName) {
             const container = document.getElementById('main-content');
-            
             document.getElementById('tab-foryou').className = tabName === 'foryou' ? 'tab-active pb-2' : 'text-zinc-500 pb-2';
             document.getElementById('tab-theaters').className = tabName === 'theaters' ? 'tab-active pb-2' : 'text-zinc-500 pb-2';
             
-            container.innerHTML = '<div class="text-center py-20 text-zinc-700 text-sm italic">Mencari drama...</div>';
+            container.innerHTML = '<div class="text-center py-20 text-zinc-700 text-sm">Menghubungkan ke server...</div>';
 
             try {
                 const endpoint = tabName === 'foryou' ? '/netshort/foryou' : '/netshort/theaters';
-                // Encode URL agar proxy dapat memproses karakter khusus dengan benar
                 const finalUrl = PROXY + encodeURIComponent(BASE_URL + endpoint);
                 
                 const response = await fetch(finalUrl);
-                if (!response.ok) throw new Error("Gagal mengambil data dari Proxy.");
-                
                 const result = await response.json();
 
-                // Logika pencarian data di dalam properti contentInfos sesuai respon API Anda
+                // Logika ekstraksi data berdasarkan respon JSON yang Anda kirim
                 let dramaList = [];
                 if (result.data) {
-                    if (result.data.contentInfos) {
-                        dramaList = result.data.contentInfos;
-                    } else if (Array.isArray(result.data)) {
+                    if (Array.isArray(result.data)) {
                         dramaList = result.data[0]?.contentInfos || result.data;
+                    } else if (result.data.contentInfos) {
+                        dramaList = result.data.contentInfos;
                     }
                 }
 
                 if (!dramaList || dramaList.length === 0) {
-                    container.innerHTML = '<div class="text-center py-20 text-zinc-500 text-xs italic">Drama tidak ditemukan. Periksa struktur contentInfos.</div>';
+                    container.innerHTML = '<div class="text-center py-20 text-zinc-500 text-xs font-bold uppercase tracking-widest">Drama Kosong / Gagal Parsing</div>';
                     return;
                 }
 
@@ -90,17 +81,17 @@
                     container.appendChild(card);
                 });
             } catch (err) {
-                container.innerHTML = `<div class="text-red-500 text-center py-20 text-xs">Gagal memuat API<br>Penyebab: ${err.message}</div>`;
+                container.innerHTML = `<div class="text-red-500 text-center py-20 text-xs">Gagal Memuat API.<br>Pesan: ${err.message}</div>`;
             }
         }
 
         async function loadAllEpisodes(shortPlayId) {
             const container = document.getElementById('main-content');
-            container.innerHTML = '<div class="text-center py-20 text-zinc-600 text-sm italic">Memuat daftar episode...</div>';
+            container.innerHTML = '<div class="text-center py-20 text-zinc-600 text-sm">Memuat Episode...</div>';
 
             try {
-                const epUrl = `${BASE_URL}/netshort/allEpisode?shortPlayId=${shortPlayId}`;
-                const response = await fetch(PROXY + encodeURIComponent(epUrl));
+                const epUrl = PROXY + encodeURIComponent(`${BASE_URL}/netshort/allEpisode?shortPlayId=${shortPlayId}`);
+                const response = await fetch(epUrl);
                 const result = await response.json();
                 const data = result.data;
 
@@ -113,14 +104,14 @@
                         ${data.episodes.map(ep => `
                             <div onclick="playVideo('${ep.video_url}')" class="p-4 bg-zinc-900/50 rounded-xl flex justify-between items-center border border-zinc-800 active:border-orange-500 transition">
                                 <span class="text-sm font-medium text-zinc-200">Episode ${ep.episode_number}</span>
-                                <span class="text-orange-500 text-xs font-bold font-mono">PLAY</span>
+                                <span class="text-orange-500 text-xs font-bold font-mono text-right">PLAY</span>
                             </div>
                         `).join('')}
                     </div>
                 `;
                 if(data.episodes.length > 0) playVideo(data.episodes[0].video_url);
             } catch (err) {
-                container.innerHTML = '<div class="text-red-500 text-center py-20 text-xs">Gagal memuat daftar episode.</div>';
+                container.innerHTML = '<div class="text-red-500 text-center py-20 text-xs">Gagal memuat episode.</div>';
             }
         }
 
