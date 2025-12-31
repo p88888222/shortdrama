@@ -16,15 +16,29 @@ async function apiGet(path) {
         if (!res.ok) return [];
         const json = await res.json();
         
-        // Menangani struktur Netshort yang sering berada di data.rows 
-        // atau langsung di data.contentInfos untuk kategori tertentu
-        let result = json.data?.rows || json.data?.contentInfos || json.data || json;
-        return Array.isArray(result) ? result : [];
+        // Log untuk debug (Cek di Console Browser/F12)
+        console.log("Data dari API:", json);
+
+        // Pencarian data yang lebih agresif
+        let result = [];
+        if (json.data) {
+            // Cek jika ada di contentInfos (sesuai contoh Anda)
+            if (json.data.contentInfos) result = json.data.contentInfos;
+            // Cek jika ada di rows
+            else if (json.data.rows) result = json.data.rows;
+            // Cek jika data itu sendiri adalah array
+            else if (Array.isArray(json.data)) result = json.data;
+        } else if (Array.isArray(json)) {
+            result = json;
+        }
+
+        return result;
     } catch (e) { 
         console.error("Fetch Error:", e);
         return []; 
     }
 }
+
 
 // 3. NAVIGASI TAB
 async function changeTab(type, el) {
