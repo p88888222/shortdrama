@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NetShort App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Sembunyikan scrollbar tapi tetap bisa scroll */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Snap scrolling seperti TikTok */
+        .snap-container {
+            scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+            height: 100vh;
+        }
+        .snap-item {
+            scroll-snap-align: start;
+            height: 100vh;
+            position: relative;
+        }
+    </style>
+</head>
+<body class="bg-black text-white overflow-hidden">
+
+    <main id="content-list" class="snap-container no-scrollbar">
+        <div class="flex h-screen items-center justify-center">
+            <p class="animate-pulse">Memuat Drama...</p>
+        </div>
+    </main>
+
+    <nav class="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent pb-6 pt-10 flex justify-around items-end z-50">
+        <button onclick="changeTab('theaters')" class="flex flex-col items-center gap-1 group">
+            <span class="text-2xl group-focus:scale-110 transition">🎭</span>
+            <span class="text-[10px] font-medium">Theaters</span>
+        </button>
+        <button onclick="changeTab('foryou')" class="flex flex-col items-center gap-1 group">
+            <div class="bg-red-600 p-2 rounded-full -mt-4 shadow-lg shadow-red-500/50">
+                <span class="text-xl">🔥</span>
+            </div>
+            <span class="text-[10px] font-medium">For You</span>
+        </button>
+        <button onclick="changeTab('search')" class="flex flex-col items-center gap-1 group">
+            <span class="text-2xl group-focus:scale-110 transition">🔍</span>
+            <span class="text-[10px] font-medium">Search</span>
+        </button>
+    </nav>
+
+    <script src="script.js"></script>
+</body>
+</html>
