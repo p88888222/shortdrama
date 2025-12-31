@@ -1,11 +1,14 @@
 {
-  "name": "netshort-app",
+  "name": "netshort-proxy-backend",
   "version": "1.0.0",
+  "description": "Server Proxy untuk Short Drama",
+  "main": "server.js",
   "scripts": {
-    "start": "npx serve -s ."
+    "start": "node server.js"
   },
   "dependencies": {
-    "serve": "^14.2.3"
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "cors": "^2.8.5"
   }
 }
-
