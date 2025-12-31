@@ -4,7 +4,6 @@ let curIdx = -1;
 
 /**
  * 1. API GET UNIVERSAL
- * Fungsi ini memastikan data yang diambil selalu dikonversi menjadi format yang konsisten
  */
 async function apiGet(path) {
     try {
@@ -12,8 +11,7 @@ async function apiGet(path) {
         if (!res.ok) throw new Error("API Error");
         const json = await res.json();
         
-        // Logika Sinkronisasi: Pastikan kita selalu berurusan dengan objek data induk
-        // Jika API mengembalikan {data: {...}}, kita ambil isinya.
+        // Mengambil objek data utama (biasanya json.data)
         return json.data || json; 
     } catch (e) {
         console.error("Fetch Error:", e);
@@ -38,54 +36,56 @@ async function changeTab(type, el) {
     const label = document.getElementById('sectionLabel');
     
     label.innerText = `MEMUAT ${type.toUpperCase()}...`;
-    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs animate-pulse text-red-500 font-bold">MENGHUBUNGKAN DATABASE...</div>';
+    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs animate-pulse text-red-600 font-bold uppercase">Menghubungkan Database...</div>';
 
-    // Endpoint tetap sesuai permintaan Anda
-    let path = (type === 'foryou') ? '/netshort/foryou' : `/netshort${type}`;
-    let path = (type === 'theaters') ? '/netshort/theaters' : `/netshort${type}`;
+    // Endpoint tujuan
+    let path = (type === 'foryou') ? '/netshort/foryou' : '/netshort/theaters';
     
-    const data = await apiGet(path);
-    renderGrid(data, type);
+    const response = await apiGet(path);
+    
+    // Kirim response ke fungsi render
+    renderGrid(response, type);
 }
 
 /**
- * 3. RENDER GRID (SAMA UNTUK SEMUA TAB)
+ * 3. RENDER GRID (Identik untuk For You & Theaters)
  */
 function renderGrid(dataObj, type) {
     const container = document.getElementById('mainContainer');
     const label = document.getElementById('sectionLabel');
 
-    // Sinkronisasi Nama Label: Gunakan contentName dari API, jika tidak ada gunakan fallback type
-    const contentName = dataObj?.contentName || (type === 'theaters' ? 'THEATERS' : 'FOR YOU');
-    label.innerText = contentName.toUpperCase();
+    // MENGAMBIL JUDUL: Prioritas contentName dari API
+    // Jika API memberikan data dalam array (Theaters seringkali begitu), 
+    // kita cek apakah item pertama punya contentName atau gunakan fallback.
+    const labelName = dataObj?.contentName || (Array.isArray(dataObj) ? dataObj[0]?.contentName : null) || type.toUpperCase();
+    label.innerText = labelName;
 
-    // Sinkronisasi Pengambilan Data:
-    // Coba ambil dari contentInfos (Struktur For You)
-    // Jika kosong, coba ambil dari rows atau data (Struktur Umum)
-    // Jika dataObj itu sendiri adalah Array, gunakan langsung
+    // MENGAMBIL DAFTAR ITEM: Mencari Array secara agresif di contentInfos atau data utama
     let items = [];
     if (dataObj?.contentInfos && Array.isArray(dataObj.contentInfos)) {
         items = dataObj.contentInfos;
-    } else if (dataObj?.rows && Array.isArray(dataObj.rows)) {
-        items = dataObj.rows;
     } else if (Array.isArray(dataObj)) {
-        items = dataObj;
+        // Jika dataObj adalah array yang berisi objek dengan contentInfos (struktur list of groups)
+        if (dataObj[0]?.contentInfos) {
+            items = dataObj.flatMap(group => group.contentInfos || []);
+        } else {
+            items = dataObj;
+        }
     } else if (dataObj?.data && Array.isArray(dataObj.data)) {
         items = dataObj.data;
     }
 
     if (!items || items.length === 0) {
-        container.innerHTML = '<p class="col-span-full text-center py-20 opacity-50 text-xs text-white uppercase tracking-widest">Data Tidak Ditemukan</p>';
+        container.innerHTML = '<p class="col-span-full text-center py-20 opacity-50 text-xs text-white">Konten Tidak Ditemukan</p>';
         return;
     }
 
     container.innerHTML = "";
     items.forEach(item => {
-        // Pemetaan ID & Judul Universal
         const id = item.shortPlayId || item.bookId || item.id;
         const title = item.shortPlayName || item.bookName || item.title || item.name;
         
-        // Logika Cover Universal (Yang sudah berhasil di tab For You)
+        // Logika Cover (Prioritas shortPlayCover sesuai temuan Anda)
         let rawCover = item.shortPlayCover || item.groupShortPlayCover || item.horizontalCover || item.coverWap || item.cover;
         let finalCover = "";
 
@@ -93,11 +93,10 @@ function renderGrid(dataObj, type) {
             if (rawCover.startsWith('http')) {
                 finalCover = rawCover;
             } else {
-                // Menambahkan domain utama jika URL bersifat relatif
                 finalCover = `https://api.sansekai.my.id${rawCover.startsWith('/') ? '' : '/'}${rawCover}`;
             }
         } else {
-            finalCover = 'https://via.placeholder.com/300x400?text=No+Poster';
+            finalCover = 'https://via.placeholder.com/300x400?text=No+Cover';
         }
 
         const div = document.createElement('div');
@@ -112,6 +111,8 @@ function renderGrid(dataObj, type) {
         container.appendChild(div);
     });
 }
+
+// Fungsi openDetail, playEp, dan closeModal tetap sama...
 
 /**
  * 4. PLAYER & EPISODE LOGIC (Tetap)
