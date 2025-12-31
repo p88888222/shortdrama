@@ -6,17 +6,18 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(__dirname));
 
-// Jembatan Proxy untuk mengatasi CORS browser
 app.get('/api-proxy', async (req, res) => {
     try {
-        const { path: apiPath, shortPlayId } = req.query;
+        const { path: apiPath, shortPlayId, searchKey } = req.query;
         let targetUrl = `https://api.sansekai.my.id/api${apiPath}`;
         
-        if (shortPlayId) {
-            targetUrl += `?shortPlayId=${shortPlayId}`;
-        }
+        // Menambahkan parameter query secara dinamis
+        const params = {};
+        if (shortPlayId) params.shortPlayId = shortPlayId;
+        if (searchKey) params.searchKey = searchKey;
 
         const response = await axios.get(targetUrl, {
+            params: params,
             headers: { 'User-Agent': 'Mozilla/5.0' }
         });
         res.json(response.data);
