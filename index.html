@@ -13,7 +13,7 @@
         .vjs-big-play-centered .vjs-big-play-button { background-color: #ff4500 !important; border: none !important; border-radius: 50% !important; }
     </style>
 </head>
-<body class="max-w-md mx-auto min-h-screen border-x border-zinc-900 shadow-2xl bg-black">
+<body class="max-w-md mx-auto min-h-screen border-x border-zinc-900 bg-black">
 
     <div class="sticky top-0 z-50 bg-black">
         <div class="aspect-video w-full bg-zinc-900 overflow-hidden shadow-lg">
@@ -26,14 +26,14 @@
     </div>
 
     <div id="main-content" class="p-4 space-y-4 pb-24">
-        <div class="text-center py-20 text-zinc-600 text-sm italic">Memuat data...</div>
+        <div id="status-msg" class="text-center py-20 text-zinc-600 text-sm italic">Memulai aplikasi...</div>
     </div>
 
     <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
     <script>
-        // Gunakan proxy cloudflare worker sebagai alternatif yang lebih stabil
-        const PROXY = "https://corsproxy.io/?";
-        const BASE_URL = "https://api.sansekai.my.id/api";
+        // Mencoba proxy alternatif yang lebih simpel
+        const PROXY_URL = "https://corsproxy.io/?";
+        const API_BASE = "https://api.sansekai.my.id/api";
         
         const player = videojs('main-player', { controls: true, autoplay: false, fluid: true });
 
@@ -42,27 +42,31 @@
             document.getElementById('tab-foryou').className = tabName === 'foryou' ? 'tab-active pb-2' : 'text-zinc-500 pb-2';
             document.getElementById('tab-theaters').className = tabName === 'theaters' ? 'tab-active pb-2' : 'text-zinc-500 pb-2';
             
-            container.innerHTML = '<div class="text-center py-20 text-zinc-700 text-sm">Menghubungkan ke server...</div>';
+            container.innerHTML = '<div class="text-center py-20 text-zinc-700 text-sm italic">Menghubungkan ke API...</div>';
 
             try {
-                const endpoint = tabName === 'foryou' ? '/netshort/foryou' : '/netshort/theaters';
-                const finalUrl = PROXY + encodeURIComponent(BASE_URL + endpoint);
+                const targetUrl = `${API_BASE}/netshort/${tabName}`;
+                // Menggunakan corsproxy.io yang tidak butuh encode rumit
+                const response = await fetch(PROXY_URL + targetUrl);
                 
-                const response = await fetch(finalUrl);
-                const result = await response.json();
+                // Cek jika response bukan JSON (misal HTML error page)
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    const text = await response.text();
+                    console.error("Bukan JSON:", text);
+                    throw new Error("API tidak memberikan data JSON (Mungkin diblokir)");
+                }
 
-                // Logika ekstraksi data berdasarkan respon JSON yang Anda kirim
+                const result = await response.json();
+                
+                // Cari contentInfos
                 let dramaList = [];
                 if (result.data) {
-                    if (Array.isArray(result.data)) {
-                        dramaList = result.data[0]?.contentInfos || result.data;
-                    } else if (result.data.contentInfos) {
-                        dramaList = result.data.contentInfos;
-                    }
+                    dramaList = result.data.contentInfos || (Array.isArray(result.data) ? result.data[0]?.contentInfos : []);
                 }
 
                 if (!dramaList || dramaList.length === 0) {
-                    container.innerHTML = '<div class="text-center py-20 text-zinc-500 text-xs font-bold uppercase tracking-widest">Drama Kosong / Gagal Parsing</div>';
+                    container.innerHTML = '<div class="text-center py-20 text-zinc-500 text-[10px] uppercase tracking-tighter">Drama tidak ditemukan.</div>';
                     return;
                 }
 
@@ -71,47 +75,46 @@
                     const card = document.createElement('div');
                     card.className = "drama-card flex gap-4 p-3 mb-3 cursor-pointer";
                     card.innerHTML = `
-                        <img src="${item.coverUrl || 'https://via.placeholder.com/150x200'}" class="w-20 h-28 object-cover rounded-lg bg-zinc-800 shadow-md">
+                        <img src="${item.coverUrl || 'https://via.placeholder.com/150x200'}" class="w-20 h-28 object-cover rounded-lg bg-zinc-800">
                         <div class="flex flex-col justify-center overflow-hidden">
                             <h3 class="text-sm font-bold text-zinc-100 truncate pr-4">${item.shortPlayName}</h3>
-                            <p class="text-[10px] text-orange-500 mt-4 font-bold uppercase tracking-widest">Tonton Sekarang →</p>
+                            <p class="text-[10px] text-orange-500 mt-4 font-bold uppercase tracking-widest">Tonton →</p>
                         </div>
                     `;
                     card.onclick = () => loadAllEpisodes(item.shortPlayId);
                     container.appendChild(card);
                 });
             } catch (err) {
-                container.innerHTML = `<div class="text-red-500 text-center py-20 text-xs">Gagal Memuat API.<br>Pesan: ${err.message}</div>`;
+                container.innerHTML = `<div class="text-red-500 text-center py-20 text-[10px]">Error: ${err.message}<br>API Sansekai mungkin memproteksi akses.</div>`;
             }
         }
 
-        async function loadAllEpisodes(shortPlayId) {
+        async function loadAllEpisodes(id) {
             const container = document.getElementById('main-content');
             container.innerHTML = '<div class="text-center py-20 text-zinc-600 text-sm">Memuat Episode...</div>';
 
             try {
-                const epUrl = PROXY + encodeURIComponent(`${BASE_URL}/netshort/allEpisode?shortPlayId=${shortPlayId}`);
-                const response = await fetch(epUrl);
+                const targetUrl = `${API_BASE}/netshort/allEpisode?shortPlayId=${id}`;
+                const response = await fetch(PROXY_URL + targetUrl);
                 const result = await response.json();
                 const data = result.data;
 
                 container.innerHTML = `
                     <div class="flex items-center justify-between mb-6">
-                        <button onclick="changeTab('foryou')" class="text-[10px] bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full font-bold">← KEMBALI</button>
+                        <button onclick="changeTab('foryou')" class="text-[9px] bg-zinc-900 border border-zinc-800 px-3 py-1 rounded-full font-bold uppercase">Kembali</button>
                         <h2 class="text-[10px] font-bold text-orange-500 truncate uppercase w-40 text-right">${data.shortPlayName}</h2>
                     </div>
                     <div class="space-y-2">
                         ${data.episodes.map(ep => `
-                            <div onclick="playVideo('${ep.video_url}')" class="p-4 bg-zinc-900/50 rounded-xl flex justify-between items-center border border-zinc-800 active:border-orange-500 transition">
-                                <span class="text-sm font-medium text-zinc-200">Episode ${ep.episode_number}</span>
-                                <span class="text-orange-500 text-xs font-bold font-mono text-right">PLAY</span>
+                            <div onclick="playVideo('${ep.video_url}')" class="p-4 bg-zinc-900/50 rounded-xl flex justify-between items-center border border-zinc-800">
+                                <span class="text-sm font-medium">Episode ${ep.episode_number}</span>
+                                <span class="text-orange-500 font-bold">▶</span>
                             </div>
                         `).join('')}
                     </div>
                 `;
-                if(data.episodes.length > 0) playVideo(data.episodes[0].video_url);
             } catch (err) {
-                container.innerHTML = '<div class="text-red-500 text-center py-20 text-xs">Gagal memuat episode.</div>';
+                container.innerHTML = '<div class="text-red-500 text-center py-20 text-[10px]">Gagal memuat episode.</div>';
             }
         }
 
