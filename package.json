@@ -1,7 +1,7 @@
 {
-  "name": "netshort-proxy-backend",
+  "name": "netshort-proxy-server",
   "version": "1.0.0",
-  "description": "Server Proxy untuk Short Drama",
+  "description": "Server Proxy Node.js untuk Short Drama Sansekai",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -10,5 +10,8 @@
     "express": "^4.18.2",
     "axios": "^1.6.0",
     "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
