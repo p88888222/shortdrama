@@ -1,70 +1,87 @@
+const BASE_URL = "https://api.sansekai.my.id/api/netshort";
+
 async function fetchData(endpoint) {
     const container = document.getElementById('content-list');
-    container.innerHTML = `<div class="h-screen flex items-center justify-center">Memuat Drama...</div>`;
+    container.innerHTML = `<div class="h-screen flex items-center justify-center animate-pulse text-sm font-bold">MENGHUBUNGKAN API...</div>`;
     
     try {
-        // Untuk Search, kita gunakan endpoint search dengan parameter kosong di awal
-        const apiPath = endpoint === 'search' ? '/netshort/search' : `/netshort/${endpoint}`;
-        const response = await fetch(`/api-proxy?path=${apiPath}`);
+        // Memanggil lewat Proxy internal Railway untuk menghindari CORS
+        const response = await fetch(`/api-proxy?path=/netshort/${endpoint}`);
         const result = await response.json();
         
         let items = [];
-        
-        // Perbaikan: Logika pembacaan data bertingkat untuk tab Theaters
+
+        // LOGIKA PENCARIAN DATA (DEEP SCAN)
+        // 1. Cek apakah ini format Theaters (Data di dalam contentInfos)
         if (result.data && Array.isArray(result.data)) {
-            // Cek apakah data pertama punya properti contentInfos (struktur tab Theaters)
-            if (result.data[0] && result.data[0].contentInfos) {
-                items = result.data.flatMap(group => group.contentInfos || []);
-            } else {
-                items = result.data;
-            }
-        } else {
-            items = result.contentInfos || result || [];
+            result.data.forEach(group => {
+                if (group.contentInfos && Array.isArray(group.contentInfos)) {
+                    items = [...items, ...group.contentInfos];
+                }
+            });
+        }
+
+        // 2. Jika langkah 1 gagal, cek format ForYou/Search (Data langsung di result atau data)
+        if (items.length === 0) {
+            items = result.data || result.contentInfos || (Array.isArray(result) ? result : []);
+        }
+
+        if (items.length === 0) {
+            container.innerHTML = `<div class="h-screen flex items-center justify-center text-zinc-500 italic text-xs">Konten tidak ditemukan atau sedang kosong.</div>`;
+            return;
         }
 
         renderVideos(items);
     } catch (e) {
-        container.innerHTML = `<div class="h-screen flex items-center justify-center text-red-500">Gagal Memuat API</div>`;
+        console.error("Fetch Error:", e);
+        container.innerHTML = `
+            <div class="h-screen flex flex-col items-center justify-center text-center p-6">
+                <span class="text-red-500 font-bold mb-2">⚠️ KONEKSI GAGAL</span>
+                <p class="text-[10px] text-zinc-500 uppercase tracking-tighter">${e.message}</p>
+                <button onclick="fetchData('${endpoint}')" class="mt-4 text-[10px] border border-zinc-700 px-6 py-2 rounded-full active:bg-zinc-800 uppercase font-bold">Coba Lagi</button>
+            </div>`;
     }
 }
 
 function renderVideos(items) {
     const container = document.getElementById('content-list');
-    if (!items || items.length === 0) {
-        container.innerHTML = `<div class="h-screen flex items-center justify-center">Konten Tidak Ditemukan</div>`;
-        return;
-    }
-
     container.innerHTML = items.map(item => {
+        // Mengambil shortPlayId dan shortPlayName sesuai perintah
         const playId = item.shortPlayId;
-        const name = (item.shortPlayName || "Drama").replace(/'/g, "\\'");
-        // Pastikan URL video ada
+        const name = (item.shortPlayName || item.title || "Drama").replace(/'/g, "\\'");
+        
+        // Memastikan URL video menggunakan playVoucher sesuai contoh JSON Anda
         const videoUrl = item.playVoucher || item.url || "";
+        const poster = item.shortPlayCover || "";
 
         return `
-            <div class="snap-item w-full bg-black relative">
+            <div class="snap-item w-full relative group">
                 <video class="w-full h-full object-cover" 
                        src="${videoUrl}" 
+                       poster="${poster}"
                        loop 
                        playsinline 
                        webkit-playsinline
                        onclick="togglePlay(this)">
                 </video>
+                
                 <div class="absolute bottom-32 left-4 right-20 pointer-events-none">
-                    <h3 class="text-lg font-bold text-white drop-shadow-md">${item.shortPlayName || 'Drama'}</h3>
+                    <h3 class="text-lg font-bold text-white drop-shadow-lg font-sans">${item.shortPlayName || item.title || 'Drama'}</h3>
+                    <p class="text-[10px] text-zinc-300 mt-1 line-clamp-2 drop-shadow-sm font-medium leading-relaxed">${item.shotIntroduce || item.description || ''}</p>
+                    
                     <button onclick="showEpisodes('${playId}', '${name}')" 
-                            class="pointer-events-auto mt-4 bg-red-600 text-white px-6 py-2 rounded-full text-xs font-bold shadow-lg active:scale-95">
-                        📂 DAFTAR EPISODE
+                            class="pointer-events-auto mt-6 bg-red-600 text-white px-8 py-3 rounded-full text-[10px] font-black shadow-2xl active:scale-90 transition-all uppercase tracking-widest">
+                        📂 Daftar Episode
                     </button>
                 </div>
             </div>`;
     }).join('');
 }
 
-// Fungsi kontrol video agar lebih stabil
+// Fungsi kontrol video agar lebih stabil di HP
 function togglePlay(video) {
     if (video.paused) {
-        video.play().catch(e => console.log("Autoplay blocked"));
+        video.play().catch(e => console.log("Play blocked"));
     } else {
         video.pause();
     }
@@ -74,40 +91,51 @@ async function showEpisodes(id, title) {
     const drawer = document.getElementById('episode-drawer');
     const list = document.getElementById('episode-list');
     
+    if (!id || id === "undefined") {
+        alert("Gagal: Drama ini tidak memiliki shortPlayId yang valid.");
+        return;
+    }
+
     document.getElementById('drawer-title').innerText = title;
-    list.innerHTML = `<div class="flex justify-center py-20 text-red-500 animate-pulse">MEMUAT...</div>`;
+    list.innerHTML = `<div class="flex justify-center py-20 animate-pulse text-xs font-bold text-red-500 uppercase">Mencari Episode...</div>`;
     drawer.classList.remove('translate-y-full');
 
     try {
         const res = await fetch(`/api-proxy?path=/netshort/allepisode&shortPlayId=${id}`);
         const result = await res.json();
         
-        // Mengambil dari shortPlayEpisodeInfos sesuai JSON Anda
+        // Mengambil daftar episode dari shortPlayEpisodeInfos
         const eps = result.shortPlayEpisodeInfos || (result.data ? result.data.shortPlayEpisodeInfos : []);
 
         if (!eps || eps.length === 0) {
-            list.innerHTML = `<p class="text-center py-10 text-zinc-500 text-xs">Episode belum tersedia.</p>`;
+            list.innerHTML = `<p class="text-center py-10 text-zinc-500 text-[10px] italic">Maaf, daftar episode untuk drama ini sedang tidak tersedia.</p>`;
             return;
         }
 
         list.innerHTML = eps.map(ep => `
-            <div onclick="playNewVideo('${ep.playVoucher}')" class="flex items-center gap-4 p-4 bg-zinc-800 rounded-xl mb-2 active:bg-red-600 transition">
-                <div class="w-8 h-8 bg-zinc-700 rounded flex items-center justify-center font-bold text-xs">${ep.episodeNo}</div>
-                <div class="flex-1 text-sm">Episode ${ep.episodeNo}</div>
-                <div class="text-[10px]">▶️</div>
+            <div onclick="playNewVideo('${ep.playVoucher}')" class="flex items-center gap-4 p-5 bg-zinc-800/40 border border-zinc-700/50 rounded-2xl active:bg-red-600 transition-all active:scale-95 mb-2">
+                <div class="w-10 h-10 bg-zinc-700 rounded-xl flex items-center justify-center font-black text-xs text-white shadow-inner">${ep.episodeNo}</div>
+                <div class="flex-1">
+                    <p class="text-xs font-bold text-white uppercase tracking-tight">Episode ${ep.episodeNo}</p>
+                    <p class="text-[8px] text-zinc-500 uppercase mt-0.5">${ep.playClarity || 'Full HD'}</p>
+                </div>
+                <div class="text-[10px] text-zinc-400">▶️</div>
             </div>`).join('');
     } catch (err) {
-        list.innerHTML = `<p class="text-center py-10 text-red-500">Error.</p>`;
+        list.innerHTML = `<p class="text-center py-10 text-red-500 text-[10px] font-bold">GAGAL MEMUAT EPISODE</p>`;
     }
 }
 
 function playNewVideo(url) {
-    const video = document.querySelector('video');
-    if (video && url) {
-        video.src = url;
-        video.load(); // Paksa reload source video
-        video.play();
+    const videos = document.querySelectorAll('video');
+    if (videos.length > 0 && url) {
+        // Mengganti source video pertama sebagai player utama
+        const mainVideo = videos[0];
+        mainVideo.src = url;
+        mainVideo.load();
+        mainVideo.play();
         closeDrawer();
+        document.getElementById('content-list').scrollTo({ top: 0, behavior: 'smooth' });
     }
 }
 
