@@ -6,7 +6,7 @@ async function apiGet(path) {
     try {
         const res = await fetch(`${API_BASE}${path}`);
         if (!res.ok) throw new Error("API Error");
-        return await res.json(); // Mengembalikan full object (bukan hanya array)
+        return await res.json();
     } catch (e) {
         console.error("Fetch Error:", e);
         return null;
@@ -23,23 +23,36 @@ async function changeTab(type, el) {
     const label = document.getElementById('sectionLabel');
     container.innerHTML = '<div class="col-span-full py-20 text-center text-xs animate-pulse text-red-500">SINKRONISASI DATABASE...</div>';
 
+    // Penyesuaian Endpoint
     let path = (type === 'foryou') ? '/netshort/foryou' : `/netshort/${type}`;
     const response = await apiGet(path);
     
-    // Kirim full response.data ke fungsi render
-    renderGrid(response?.data || response);
+    // Kirim data ke fungsi render
+    renderGrid(response?.data || response, type);
 }
 
-function renderGrid(dataObj) {
+function renderGrid(dataObj, type) {
     const container = document.getElementById('mainContainer');
     const label = document.getElementById('sectionLabel');
 
-    // 1. Ambil Nama Konten (Misal: "Drama Viral")
-    const contentName = dataObj?.contentName || "DRAMA TERBARU";
-    label.innerText = contentName.toUpperCase();
+    // --- LOGIKA PENENTUAN DAFTAR ITEM ---
+    // Jika ada contentInfos (biasanya foryou), ambil itu. 
+    // Jika dataObj sendiri adalah Array (biasanya theaters), gunakan langsung.
+    // Jika ada dataObj.rows, gunakan itu.
+    let items = [];
+    if (dataObj?.contentInfos) {
+        items = dataObj.contentInfos;
+    } else if (Array.isArray(dataObj)) {
+        items = dataObj;
+    } else if (dataObj?.rows) {
+        items = dataObj.rows;
+    } else if (dataObj?.data && Array.isArray(dataObj.data)) {
+        items = dataObj.data;
+    }
 
-    // 2. Ambil Daftar Drama dari contentInfos
-    const items = dataObj?.contentInfos || (Array.isArray(dataObj) ? dataObj : []);
+    // Penentuan Judul Label
+    const contentName = dataObj?.contentName || (type === 'theaters' ? 'Theaters' : 'Drama Terbaru');
+    label.innerText = contentName.toUpperCase();
 
     if (!items || items.length === 0) {
         container.innerHTML = '<p class="col-span-full text-center py-20 opacity-50 text-xs text-white">Data Tidak Tersedia.</p>';
@@ -49,30 +62,26 @@ function renderGrid(dataObj) {
     container.innerHTML = "";
     items.forEach(item => {
         const id = item.shortPlayId || item.bookId || item.id;
-        const title = item.shortPlayName || item.bookName || item.title;
+        const title = item.shortPlayName || item.bookName || item.title || item.name;
         
-        // --- LOGIKA PERBAIKAN COVER (Prioritas shortPlayCover & groupShortPlayCover) ---
+        // Gunakan logika cover yang sudah berhasil di For You
         let rawCover = item.shortPlayCover || item.groupShortPlayCover || item.horizontalCover || item.coverWap || item.cover;
         let finalCover = "";
 
         if (rawCover) {
-            // Jika URL berupa path relatif (misal: /images/xxx.jpg), tambahkan domain API
             if (rawCover.startsWith('http')) {
                 finalCover = rawCover;
             } else {
-                // Pastikan domain ini sesuai dengan base API Anda
                 const domain = "https://api.sansekai.my.id";
                 finalCover = `${domain}${rawCover.startsWith('/') ? '' : '/'}${rawCover}`;
             }
         } else {
-            // Gambar cadangan jika semua field kosong
             finalCover = 'https://via.placeholder.com/300x400?text=No+Cover';
         }
-        // -----------------------------------------------------------------------------
 
         const div = document.createElement('div');
         div.className = "cursor-pointer animate-slideUp group";
-        div.onclick = () => openDetail(id, title, item.shortPlayLabels || item.introduction);
+        div.onclick = () => openDetail(id, title, item.shortPlayLabels || item.introduction || item.description);
         div.innerHTML = `
             <div class="aspect-[3/4] rounded-xl overflow-hidden bg-slate-800 mb-1 border border-white/5 shadow-lg group-active:scale-95 transition">
                 <img src="${finalCover}" class="w-full h-full object-cover" 
@@ -83,8 +92,7 @@ function renderGrid(dataObj) {
     });
 }
 
-
-// Fungsi openDetail dan playEp tetap sama seperti sebelumnya...
+// Fungsi openDetail dan playEp tetap menggunakan logika yang lama karena sudah stabil
 async function openDetail(id, title, desc) {
     const modal = document.getElementById('detailModal');
     modal.classList.remove('hidden');
@@ -92,9 +100,9 @@ async function openDetail(id, title, desc) {
     document.getElementById('modalTitle').innerText = title;
     document.getElementById('modalDesc').innerText = desc || "Deskripsi tidak tersedia.";
     
-    // Untuk allepisode, biasanya langsung berupa array
     const epRaw = await apiGet(`/netshort/allepisode?bookId=${id}`);
-    epData = epRaw?.data || epRaw || [];
+    // Handle data episode jika dibungkus .data atau array langsung
+    epData = epRaw?.data?.rows || epRaw?.data || epRaw || [];
     
     const epList = document.getElementById('modalEpisodes');
     epList.innerHTML = "";
