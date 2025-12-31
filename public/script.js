@@ -2,27 +2,14 @@ const API_BASE = "/api-proxy";
 let epData = [];
 let curIdx = -1;
 
-// Helper: Membongkar isi data secara otomatis dengan pengecekan lebih teliti
-function extractData(json) {
-    if (Array.isArray(json)) return json;
-    // Cek hirarki data standar Netshort
-    const data = json.data || json;
-    if (Array.isArray(data)) return data;
-    if (data.contentInfos && Array.isArray(data.contentInfos)) return data.contentInfos;
-    if (data.rows && Array.isArray(data.rows)) return data.rows;
-    if (data.list && Array.isArray(data.list)) return data.list;
-    return [];
-}
-
 async function apiGet(path) {
     try {
         const res = await fetch(`${API_BASE}${path}`);
         if (!res.ok) throw new Error("API Error");
-        const json = await res.json();
-        return extractData(json);
+        return await res.json(); // Mengembalikan full object (bukan hanya array)
     } catch (e) {
         console.error("Fetch Error:", e);
-        return [];
+        return null;
     }
 }
 
@@ -34,52 +21,89 @@ async function changeTab(type, el) {
     
     const container = document.getElementById('mainContainer');
     const label = document.getElementById('sectionLabel');
-    label.innerText = `MEMUAT ${type.toUpperCase()}...`;
-    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs animate-pulse text-red-500">SINKRONISASI DATA...</div>';
+    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs animate-pulse text-red-500">SINKRONISASI DATABASE...</div>';
 
-    // Penyesuaian Endpoint agar tidak Undefined
-    let path = "";
-    if (type === 'foryou') path = "/netshort/foryou";
-    else if (type === 'theaters') path = "/netshort/theaters";
-    else path = `/netshort/${type}`;
-
-    const items = await apiGet(path);
-    renderGrid(items);
-    label.innerText = type.toUpperCase();
+    let path = (type === 'foryou') ? '/netshort/foryou' : `/netshort/${type}`;
+    const response = await apiGet(path);
+    
+    // Kirim full response.data ke fungsi render
+    renderGrid(response?.data || response);
 }
 
-function renderGrid(items) {
+function renderGrid(dataObj) {
     const container = document.getElementById('mainContainer');
+    const label = document.getElementById('sectionLabel');
+
+    // 1. Ambil Nama Konten (contentName) jika ada
+    const contentName = dataObj?.contentName || "DRAMA TERBARU";
+    label.innerText = contentName.toUpperCase();
+
+    // 2. Ambil Daftar Drama dari contentInfos
+    const items = dataObj?.contentInfos || (Array.isArray(dataObj) ? dataObj : []);
+
     if (!items || items.length === 0) {
-        container.innerHTML = '<p class="col-span-full text-center py-20 opacity-50 text-xs text-white">Data Tidak Ditemukan.</p>';
+        container.innerHTML = '<p class="col-span-full text-center py-20 opacity-50 text-xs text-white">Data Tidak Tersedia.</p>';
         return;
     }
 
     container.innerHTML = "";
     items.forEach(item => {
-        // Mapping ID
+        // Mapping Field berdasarkan struktur contentInfos
         const id = item.shortPlayId || item.bookId || item.id;
-        
-        // Mapping Judul
-        const title = item.shortPlayName || item.bookName || item.title || item.name || "No Title";
-        
-        // Mapping Gambar (Cek semua kemungkinan key cover)
-        const cover = item.coverWap || item.horizontalCover || item.verticalCover || item.cover || item.imgUrl;
+        const title = item.shortPlayName || item.bookName || item.title;
+        const cover = item.horizontalCover || item.coverWap || item.verticalCover || item.cover;
 
         const div = document.createElement('div');
         div.className = "cursor-pointer animate-slideUp group";
-        div.onclick = () => openDetail(id, title, item.shortPlayLabels || item.introduction || item.description);
+        div.onclick = () => openDetail(id, title, item.shortPlayLabels || item.introduction);
         div.innerHTML = `
             <div class="aspect-[3/4] rounded-xl overflow-hidden bg-slate-800 mb-1 border border-white/5 shadow-lg group-active:scale-95 transition">
                 <img src="${cover}" class="w-full h-full object-cover" 
-                     onerror="this.src='https://via.placeholder.com/300x400?text=No+Image'">
+                     onerror="this.src='https://via.placeholder.com/300x400?text=No+Cover'">
             </div>
             <h3 class="text-[9px] font-bold line-clamp-2 text-gray-400 px-1 leading-tight uppercase">${title}</h3>`;
         container.appendChild(div);
     });
 }
 
-// ... Fungsi openDetail, playEp, dan closeModal tetap sama seperti sebelumnya ...
+// Fungsi openDetail dan playEp tetap sama seperti sebelumnya...
+async function openDetail(id, title, desc) {
+    const modal = document.getElementById('detailModal');
+    modal.classList.remove('hidden');
+    document.body.style.overflow = "hidden";
+    document.getElementById('modalTitle').innerText = title;
+    document.getElementById('modalDesc').innerText = desc || "Deskripsi tidak tersedia.";
+    
+    // Untuk allepisode, biasanya langsung berupa array
+    const epRaw = await apiGet(`/netshort/allepisode?bookId=${id}`);
+    epData = epRaw?.data || epRaw || [];
+    
+    const epList = document.getElementById('modalEpisodes');
+    epList.innerHTML = "";
+    epData.forEach((ep, i) => {
+        const btn = document.createElement('button');
+        btn.className = "w-full text-left bg-white/5 p-4 rounded-xl text-[10px] border border-white/5 flex justify-between";
+        btn.innerHTML = `<span>EPISODE ${i+1}</span> <i class="fa-solid fa-play text-red-600"></i>`;
+        btn.onclick = () => playEp(i);
+        epList.appendChild(btn);
+    });
+}
+
+function playEp(idx) {
+    if (idx < 0 || idx >= epData.length) return;
+    curIdx = idx;
+    const player = document.getElementById('mainPlayer');
+    document.getElementById('playerContainer').classList.remove('hidden');
+    let ep = epData[idx];
+    player.src = ep.videoUrl || ep.url || ep.videoPath;
+    player.play();
+}
+
+function closeModal() {
+    document.getElementById('detailModal').classList.add('hidden');
+    document.getElementById('mainPlayer').pause();
+    document.body.style.overflow = "auto";
+}
 
 document.addEventListener('DOMContentLoaded', () => changeTab('foryou'));
 
