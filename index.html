@@ -3,151 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NetShort Player - Final</title>
+    <title>NetShort Player</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
     <style>
-        body { background-color: #0b0b0b; color: white; font-family: sans-serif; }
+        body { background-color: #0b0b0b; color: white; }
         .tab-active { color: #ff4500; border-bottom: 3px solid #ff4500; }
-        .vjs-big-play-centered .vjs-big-play-button { background-color: #ff4500; border: none; border-radius: 50%; }
-        .drama-card { background: #161616; border: 1px solid #222; transition: 0.2s; }
-        .drama-card:active { transform: scale(0.97); background: #222; }
+        .drama-card { background: #161616; border: 1px solid #222; }
     </style>
 </head>
 <body class="max-w-md mx-auto min-h-screen border-x border-zinc-900 shadow-2xl">
 
     <div class="sticky top-0 z-50 bg-black">
-        <div class="aspect-video w-full bg-zinc-900 shadow-lg">
+        <div class="aspect-video w-full bg-zinc-900 overflow-hidden">
             <video id="player" class="video-js vjs-fluid vjs-big-play-centered" playsinline></video>
         </div>
         
-        <div class="flex justify-around bg-zinc-950 border-b border-zinc-800 text-[11px] font-bold tracking-widest py-4">
-            <button onclick="changeTab('foryou')" id="tab-foryou" class="pb-1">FOR YOU</button>
-            <button onclick="changeTab('theaters')" id="tab-theaters" class="pb-1 text-zinc-500">THEATERS</button>
+        <div class="flex justify-around bg-zinc-950 border-b border-zinc-800 py-4 font-bold text-[11px] tracking-widest">
+            <button onclick="loadTab('foryou')" id="tab-foryou" class="pb-1">FOR YOU</button>
+            <button onclick="loadTab('theaters')" id="tab-theaters" class="pb-1 text-zinc-500">THEATERS</button>
         </div>
     </div>
 
     <div id="content" class="p-4 space-y-4 pb-24">
-        <div class="text-center py-20 text-zinc-500 text-sm italic">Menghubungkan ke server...</div>
+        <div class="text-center py-20 text-zinc-600 text-sm italic">Menghubungkan ke API...</div>
     </div>
 
     <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
-    <script>
-        // Menggunakan Proxy AllOrigins (Raw Mode)
-        const PROXY = "https://api.allorigins.win/raw?url=";
-        const BASE_API = "https://api.sansekai.my.id/api";
-        
-        const videoPlayer = videojs('player', { controls: true, autoplay: false });
-
-        async function changeTab(tabName) {
-            const container = document.getElementById('content');
-            document.getElementById('tab-foryou').className = tabName === 'foryou' ? 'tab-active pb-1' : 'text-zinc-500 pb-1';
-            document.getElementById('tab-theaters').className = tabName === 'theaters' ? 'tab-active pb-1' : 'text-zinc-500 pb-1';
-            
-            container.innerHTML = '<div class="text-center py-20 text-zinc-600 text-sm">Memuat drama...</div>';
-
-            try {
-                const endpoint = tabName === 'foryou' ? '/netshort/foryou' : '/netshort/theaters';
-                const res = await fetch(PROXY + encodeURIComponent(BASE_API + endpoint));
-                const result = await res.json();
-
-                // LOGIKA PENCARIAN OTOMATIS (Sangat Penting)
-                let dramaList = [];
-                
-                // Cari properti 'contentInfos' dimanapun dia berada dalam object data
-                if (result.data) {
-                    if (result.data.contentInfos) {
-                        dramaList = result.data.contentInfos;
-                    } else if (Array.isArray(result.data)) {
-                        // Jika data adalah array, cek elemen pertamanya
-                        dramaList = result.data[0]?.contentInfos || result.data;
-                    } else if (typeof result.data === 'object') {
-                        // Scan semua key di dalam data untuk mencari array
-                        for (let key in result.data) {
-                            if (Array.isArray(result.data[key])) {
-                                dramaList = result.data[key];
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (!dramaList || dramaList.length === 0) {
-                    container.innerHTML = `
-                        <div class="text-center py-20 text-zinc-500">
-                            <p class="text-xs">Drama tidak ditemukan di respon API.</p>
-                            <button onclick="changeTab('${tabName}')" class="mt-4 text-orange-500 text-[10px] font-bold">COBA LAGI</button>
-                        </div>`;
-                    return;
-                }
-
-                container.innerHTML = "";
-                dramaList.forEach(item => {
-                    // Mapping field sesuai respon API anda
-                    const id = item.shortPlayId || item.id;
-                    const name = item.shortPlayName || item.title || "Untitled Drama";
-                    const cover = item.coverUrl || "https://via.placeholder.com/150x200?text=No+Cover";
-
-                    const card = document.createElement('div');
-                    card.className = "drama-card flex gap-4 p-3 rounded-xl cursor-pointer";
-                    card.innerHTML = `
-                        <img src="${cover}" class="w-20 h-28 object-cover rounded-lg shadow-lg bg-zinc-800">
-                        <div class="flex flex-col justify-center overflow-hidden">
-                            <h3 class="text-sm font-bold text-zinc-100 truncate pr-4">${name}</h3>
-                            <div class="flex flex-wrap gap-1 mt-2">
-                                ${item.labelArray ? item.labelArray.slice(0, 2).map(l => `<span class="text-[9px] bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-500 font-medium">${l}</span>`).join('') : ''}
-                            </div>
-                            <p class="text-[10px] text-orange-600 mt-4 font-bold uppercase tracking-widest">Tonton →</p>
-                        </div>
-                    `;
-                    card.onclick = () => loadEpisodes(id);
-                    container.appendChild(card);
-                });
-            } catch (err) {
-                container.innerHTML = `<div class="text-red-500 text-center py-20 text-xs">Error: ${err.message}</div>`;
-            }
-        }
-
-        async function loadEpisodes(shortPlayId) {
-            const container = document.getElementById('content');
-            container.innerHTML = '<div class="text-center py-20 text-zinc-500 text-sm">Mengambil daftar episode...</div>';
-
-            try {
-                const url = `${BASE_API}/netshort/allEpisode?shortPlayId=${shortPlayId}`;
-                const res = await fetch(PROXY + encodeURIComponent(url));
-                const result = await res.json();
-                const data = result.data;
-
-                container.innerHTML = `
-                    <div class="flex items-center justify-between mb-6">
-                        <button onclick="changeTab('foryou')" class="text-[9px] bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full font-bold">← KEMBALI</button>
-                        <h2 class="text-[10px] font-bold text-orange-500 truncate uppercase w-40 text-right">${data.shortPlayName}</h2>
-                    </div>
-                    <div class="space-y-2">
-                        ${data.episodes.map(ep => `
-                            <div onclick="play('${ep.video_url}')" class="p-4 bg-zinc-900/50 rounded-xl flex justify-between items-center border border-zinc-800 active:border-orange-500">
-                                <span class="text-sm font-medium">Episode ${ep.episode_number}</span>
-                                <span class="text-orange-500 text-xs font-bold">PLAY</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-                if(data.episodes.length > 0) play(data.episodes[0].video_url);
-            } catch (err) {
-                container.innerHTML = '<div class="text-red-500 text-center py-20 text-sm">Gagal memuat daftar episode.</div>';
-            }
-        }
-
-        function play(url) {
-            if(!url) return alert("Video tidak tersedia.");
-            const type = url.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
-            videoPlayer.src({ src: url, type: type });
-            videoPlayer.play();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        document.addEventListener('DOMContentLoaded', () => changeTab('foryou'));
-    </script>
+    <script src="index.js"></script>
 </body>
 </html>
 
