@@ -23,34 +23,43 @@ async function loadTab(tabName) {
         const response = await fetch(finalUrl);
         const result = await response.json();
 
-        // Cari contentInfos sesuai respon API anda
+        // LOGIKA PENYESUAIAN STRUKTUR JSON ANDA
         let dramaList = [];
-        if (result.data) {
-            if (result.data.contentInfos) {
-                dramaList = result.data.contentInfos;
-            } else if (Array.isArray(result.data)) {
-                dramaList = result.data[0]?.contentInfos || result.data;
-            }
+        
+        // Memeriksa struktur data[0].contentInfos sesuai contoh yang anda kirim
+        if (result.data && Array.isArray(result.data)) {
+            dramaList = result.data[0]?.contentInfos || [];
+        } else if (result.data && result.data.contentInfos) {
+            dramaList = result.data.contentInfos;
         }
 
-        if (!dramaList || dramaList.length === 0) {
-            container.innerHTML = '<div class="text-center py-20 text-zinc-700 text-xs">Drama tidak ditemukan. Cek respon API.</div>';
+        if (dramaList.length === 0) {
+            container.innerHTML = '<div class="text-center py-20 text-zinc-700 text-xs">Drama tidak ditemukan. Pastikan contentInfos tersedia.</div>';
             return;
         }
 
         container.innerHTML = "";
         dramaList.forEach(item => {
+            // Mengambil ID dan Nama tepat dari respon JSON anda
+            const id = item.shortPlayId;
+            const name = item.shortPlayName;
+            const cover = item.coverUrl || "https://via.placeholder.com/150x200?text=No+Cover";
+
             const card = document.createElement('div');
-            card.className = "drama-card flex gap-4 p-3 rounded-xl cursor-pointer mb-3";
+            card.className = "drama-card flex gap-4 p-3 cursor-pointer mb-3 hover:bg-zinc-800 transition";
             card.innerHTML = `
-                <img src="${item.coverUrl}" class="w-20 h-28 object-cover rounded-lg bg-zinc-800 shadow-md">
+                <img src="${cover}" class="w-20 h-28 object-cover rounded-lg bg-zinc-800 shadow-md">
                 <div class="flex flex-col justify-center overflow-hidden">
-                    <h3 class="text-sm font-bold text-white truncate pr-4">${item.shortPlayName}</h3>
-                    <p class="text-[10px] text-orange-500 mt-4 font-bold uppercase tracking-widest">Tonton Sekarang →</p>
+                    <h3 class="text-sm font-bold text-white truncate pr-4">${name}</h3>
+                    <div class="flex flex-wrap gap-1 mt-2">
+                        ${item.labelArray ? item.labelArray.slice(0, 2).map(l => `<span class="text-[9px] bg-zinc-800 px-2 py-0.5 rounded text-zinc-500 font-medium">${l}</span>`).join('') : ''}
+                    </div>
+                    <p class="text-[10px] text-orange-500 mt-4 font-bold uppercase tracking-widest">MULAI NONTON →</p>
                 </div>
             `;
-            // Mengirim shortPlayId ke fungsi allEpisode
-            card.onclick = () => loadAllEpisodes(item.shortPlayId);
+            
+            // Saat diklik, panggil allEpisode dengan shortPlayId
+            card.onclick = () => loadAllEpisodes(id);
             container.appendChild(card);
         });
     } catch (err) {
@@ -60,17 +69,17 @@ async function loadTab(tabName) {
 
 async function loadAllEpisodes(shortPlayId) {
     const container = document.getElementById('content');
-    container.innerHTML = '<div class="text-center py-20 text-zinc-500 text-sm">Mengambil episode...</div>';
+    container.innerHTML = '<div class="text-center py-20 text-zinc-500 text-sm italic">Mengambil list episode...</div>';
 
     try {
         const epUrl = `${BASE_API}/netshort/allEpisode?shortPlayId=${shortPlayId}`;
         const response = await fetch(PROXY + encodeURIComponent(epUrl));
         const result = await response.json();
-        const data = result.data;
+        const data = result.data; // Mengandung shortPlayName dan array episodes
 
         container.innerHTML = `
             <div class="flex items-center justify-between mb-6">
-                <button onclick="loadTab('foryou')" class="text-[9px] bg-zinc-800 px-3 py-1.5 rounded-full font-bold">← KEMBALI</button>
+                <button onclick="loadTab('foryou')" class="text-[10px] bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full font-bold">← KEMBALI</button>
                 <h2 class="text-[10px] font-bold text-orange-500 truncate uppercase w-40 text-right">${data.shortPlayName}</h2>
             </div>
             <div class="space-y-2">
@@ -82,9 +91,13 @@ async function loadAllEpisodes(shortPlayId) {
                 `).join('')}
             </div>
         `;
-        if (data.episodes.length > 0) playVideo(data.episodes[0].video_url);
+        
+        // Auto-play episode pertama
+        if (data.episodes && data.episodes.length > 0) {
+            playVideo(data.episodes[0].video_url);
+        }
     } catch (err) {
-        container.innerHTML = '<div class="text-red-500 text-center py-20">Gagal mengambil episode.</div>';
+        container.innerHTML = '<div class="text-red-500 text-center py-20 text-xs font-bold">Gagal mengambil episode.</div>';
     }
 }
 
@@ -96,4 +109,6 @@ function playVideo(url) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// Jalankan tab awal
 document.addEventListener('DOMContentLoaded', () => loadTab('foryou'));
+
