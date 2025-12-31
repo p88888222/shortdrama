@@ -2,34 +2,35 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NetShort Web</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetShort - Nonton Drama</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
     <style>
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .snap-container { scroll-snap-type: y mandatory; overflow-y: scroll; height: 100vh; }
-        .snap-item { scroll-snap-align: start; height: 100vh; position: relative; background: #000; }
+        body { background-color: #000; color: white; }
+        .tab-active { color: #ff4500; border-bottom: 2px solid #ff4500; }
+        .vjs-big-play-centered .vjs-big-play-button { background-color: #ff4500; border: none; }
     </style>
 </head>
-<body class="bg-black text-white overflow-hidden font-sans">
-    <main id="content-list" class="snap-container no-scrollbar">
-        <div class="h-screen flex items-center justify-center animate-pulse">Memuat Drama...</div>
-    </main>
+<body class="max-w-md mx-auto">
 
-    <div id="episode-drawer" class="fixed inset-x-0 bottom-0 z-[60] bg-zinc-900 rounded-t-3xl transition-transform transform translate-y-full h-[75vh] flex flex-col border-t border-zinc-800">
-        <div class="p-5 flex justify-between items-center border-b border-zinc-800">
-            <h2 id="drawer-title" class="font-bold truncate w-64 text-red-500 uppercase text-xs tracking-tighter">Daftar Episode</h2>
-            <button onclick="closeDrawer()" class="text-3xl text-zinc-500">&times;</button>
+    <div class="sticky top-0 z-50 bg-black shadow-lg">
+        <div class="aspect-video w-full bg-zinc-900">
+            <video id="main-player" class="video-js vjs-fluid" playsinline></video>
         </div>
-        <div id="episode-list" class="flex-1 overflow-y-auto p-4 space-y-3 pb-24 no-scrollbar"></div>
+        
+        <div class="flex justify-around bg-zinc-950 py-3 text-xs font-bold border-b border-zinc-800">
+            <button onclick="changeTab('foryou')" id="tab-foryou" class="pb-1 transition-all">FOR YOU</button>
+            <button onclick="changeTab('theaters')" id="tab-theaters" class="pb-1 transition-all">THEATERS</button>
+        </div>
     </div>
 
-    <nav class="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent p-5 flex justify-around items-end z-50">
-        <button onclick="changeTab('theaters')" class="flex flex-col items-center gap-1"><span class="text-2xl">🎭</span><span class="text-[10px]">Theaters</span></button>
-        <button onclick="changeTab('foryou')" class="flex flex-col items-center gap-1"><div class="bg-red-600 p-2 rounded-full -mt-5 shadow-lg"><span class="text-xl">🔥</span></div><span class="text-[10px]">For You</span></button>
-        <button onclick="changeTab('search')" class="flex flex-col items-center gap-1"><span class="text-2xl">🔍</span><span class="text-[10px]">Search</span></button>
-    </nav>
-    <script src="script.js"></script>
+    <div id="content-area" class="p-4 space-y-4 pb-20">
+        <p class="text-center text-zinc-500 mt-10">Memuat konten...</p>
+    </div>
+
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+    <script src="index.js"></script>
 </body>
 </html>
 
