@@ -1,13 +1,13 @@
 {
-  "name": "netshort-webapp",
+  "name": "netshort-app",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Aplikasi Nonton Drama Pendek",
+  "main": "index.html",
   "scripts": {
-    "start": "node index.js"
+    "start": "npx serve -s ."
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "axios": "^1.6.0"
+    "serve": "^14.2.3"
   }
 }
 
