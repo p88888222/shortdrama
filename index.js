@@ -1,4 +1,5 @@
-const BASE_URL = "https://api.sansekai.my.id/api";
+// Menjadi ini (menggunakan proxy):
+const BASE_URL = "https://corsproxy.io/?https://api.sansekai.my.id/api";
 const player = videojs('main-player', { controls: true, autoplay: false });
 
 // Fungsi ganti Tab
