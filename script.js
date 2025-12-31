@@ -1,157 +1,95 @@
-/**
- * DRAMAXIN BOX - ULTIMATE CORE JS
- * Sync: Auto-Next, Bot Parameter, Tab Navigation
- */
+const BASE_URL = "https://api.sansekai.my.id/api/netshort";
 
-const API_BASE = window.location.hostname.includes('vercel.app') 
-    ? "/api-proxy/dramabox" 
-    : "https://api.sansekai.my.id/api/dramabox";
+async function fetchData(endpoint) {
+    const container = document.getElementById('content-list');
+    container.innerHTML = `<div class="h-screen flex items-center justify-center">Menyiapkan Drama...</div>`;
 
-let epData = [];
-let curIdx = -1;
-
-// 1. API GET
-async function apiGet(path) {
     try {
-        const res = await fetch(`${API_BASE}${path}`);
-        if (!res.ok) return [];
-        const json = await res.json();
-        let result = path.includes('/vip') 
-            ? (json.columnVoList?.flatMap(c => c.bookList || []) || []) 
-            : (json.data?.data || json.data || json);
-        return Array.isArray(result) ? result : [];
-    } catch (e) { return []; }
-}
+        const response = await fetch(`${BASE_URL}/${endpoint}`);
+        const result = await response.json();
+        const items = result.data || result;
 
-// 2. NAVIGASI TAB
-async function changeTab(type, el) {
-    if (el) setActiveTab(el);
-    const container = document.getElementById('mainContainer');
-    const label = document.getElementById('sectionLabel');
-    if (!container) return;
-
-    label.innerText = `Memuat ${type.toUpperCase()}...`;
-    container.innerHTML = '<div class="col-span-full text-center py-20 text-red-600 animate-pulse font-bold">SINKRONISASI DATABASE...</div>';
-    
-    const path = type === 'dubindo' ? '/dubindo?classify=terbaru&page=1' : `/${type}`;
-    const data = await apiGet(path);
-    renderGrid(data);
-    label.innerText = type.toUpperCase();
-}
-
-// 3. PENCARIAN (SERVER-SIDE)
-async function performSearch(query) {
-    if (!query) return;
-    const container = document.getElementById('mainContainer');
-    container.innerHTML = '<div class="col-span-full text-center py-20 text-red-500 font-bold italic animate-bounce">Mencari...</div>';
-    const results = await apiGet(`/search?query=${encodeURIComponent(query)}`);
-    renderGrid(results);
-    document.getElementById('sectionLabel').innerText = `HASIL: ${query.toUpperCase()}`;
-}
-
-// 4. RENDER GRID
-function renderGrid(items) {
-    const container = document.getElementById('mainContainer');
-    container.innerHTML = items.length ? "" : '<p class="col-span-full text-center py-20 opacity-50">Data tidak tersedia.</p>';
-    items.forEach(item => {
-        const id = item.bookId || item.id;
-        const div = document.createElement('div');
-        div.className = "cursor-pointer animate-slideUp group";
-        div.onclick = () => openDetail(id, item.bookName || item.title, item.introduction);
-        div.innerHTML = `
-            <div class="aspect-[3/4] rounded-2xl overflow-hidden bg-slate-900 mb-2 shadow-lg group-active:scale-95 transition">
-                <img src="${item.coverWap || item.cover}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x400'">
-            </div>
-            <h3 class="text-[10px] font-bold line-clamp-2 text-gray-300 px-1 leading-tight">${item.bookName || item.title}</h3>`;
-        container.appendChild(div);
-    });
-}
-
-// 5. PLAYER & AUTO-NEXT LOGIC
-async function openDetail(id, title, desc) {
-    const modal = document.getElementById('detailModal');
-    modal.classList.remove('hidden');
-    document.body.style.overflow = "hidden";
-    document.getElementById('modalTitle').innerText = title;
-    document.getElementById('modalDesc').innerText = desc || "Deskripsi tidak tersedia.";
-    document.getElementById('playerContainer').classList.add('hidden');
-
-    epData = await apiGet(`/allepisode?bookId=${id}`);
-    const epList = document.getElementById('modalEpisodes');
-    epList.innerHTML = "";
-    epData.forEach((ep, i) => {
-        const btn = document.createElement('button');
-        btn.className = "w-full text-left bg-white/5 p-4 rounded-2xl text-[10px] border border-white/5 flex justify-between items-center mb-1 active:bg-red-600/20";
-        btn.innerHTML = `<span>EPISODE ${i + 1}</span><i class="fa-solid fa-play text-red-600"></i>`;
-        btn.onclick = () => playEp(i);
-        epList.appendChild(btn);
-    });
-}
-
-function playEp(idx) {
-    if (idx < 0 || idx >= epData.length) return;
-    curIdx = idx;
-    const player = document.getElementById('mainPlayer');
-    document.getElementById('playerContainer').classList.remove('hidden');
-    
-    let ep = epData[idx];
-    let url = ep.videoUrl || ep.url;
-    if (ep.cdnList?.[0]?.videoPathList?.[0]) {
-        url = (ep.cdnList.find(c => c.isDefault === 1) || ep.cdnList[0]).videoPathList[0].videoPath;
-    }
-
-    player.pause();
-    player.src = url;
-    player.load();
-    player.play().catch(() => console.log("Menunggu interaksi user"));
-
-    // Navigasi & Auto Next
-    document.getElementById('prevBtn').onclick = () => playEp(curIdx - 1);
-    document.getElementById('nextBtn').onclick = () => playEp(curIdx + 1);
-    
-    // Logika Auto-Next Terintegrasi
-    player.onended = () => {
-        if (curIdx + 1 < epData.length) {
-            playEp(curIdx + 1);
+        if (!items || items.length === 0) {
+            container.innerHTML = `<div class="h-screen flex items-center justify-center">Konten Kosong.</div>`;
+            return;
         }
-    };
 
-    document.querySelector('#detailModal .overflow-y-auto').scrollTop = 0;
-}
-
-// 6. HELPER FUNCTIONS
-function closeModal() {
-    document.getElementById('detailModal').classList.add('hidden');
-    const player = document.getElementById('mainPlayer');
-    player.pause();
-    player.src = "";
-    document.body.style.overflow = "auto";
-}
-
-function setActiveTab(el) {
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('tab-active');
-        btn.classList.add('text-gray-500');
-    });
-    el.classList.add('tab-active');
-    el.classList.remove('text-gray-500');
-}
-
-// 7. INITIALIZE (DOM READY)
-document.addEventListener('DOMContentLoaded', () => {
-    const p = new URLSearchParams(window.location.search);
-    const bid = p.get('bookId');
-    const q = p.get('query');
-
-    if (bid) {
-        changeTab('trending').then(() => openDetail(bid, "Memuat...", ""));
-    } else if (q) {
-        performSearch(q);
-    } else {
-        changeTab('trending');
+        renderVideos(items);
+    } catch (e) {
+        container.innerHTML = `<div class="h-screen flex items-center justify-center text-red-500">Gagal Memuat API</div>`;
     }
+}
 
-    document.getElementById('searchInput')?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') performSearch(e.target.value);
-    });
-});
+function renderVideos(items) {
+    const container = document.getElementById('content-list');
+    container.innerHTML = items.map(item => {
+        const playId = item.shortPlayId;
+        const title = (item.shortPlayName || "NetShort Drama").replace(/'/g, "\\'");
+        const videoUrl = item.playVoucher || item.url || "";
+
+        return `
+            <div class="snap-item w-full">
+                <video class="w-full h-full object-cover" src="${videoUrl}" loop playsinline onclick="this.paused ? this.play() : this.pause()"></video>
+                <div class="absolute bottom-32 left-4 right-20 pointer-events-none">
+                    <h3 class="text-xl font-bold drop-shadow-lg">${item.shortPlayName || 'Short Drama'}</h3>
+                    <p class="text-xs text-zinc-300 mt-2 line-clamp-2">${item.shotIntroduce || ''}</p>
+                    <button onclick="showEpisodes('${playId}', '${title}')" 
+                            class="pointer-events-auto mt-6 bg-red-600 text-white px-8 py-3 rounded-full text-xs font-bold shadow-xl active:scale-95 transition">
+                        📂 DAFTAR EPISODE
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function showEpisodes(id, title) {
+    const drawer = document.getElementById('episode-drawer');
+    const list = document.getElementById('episode-list');
+    
+    document.getElementById('drawer-title').innerText = title;
+    list.innerHTML = `<div class="flex justify-center py-20 animate-spin text-2xl">⏳</div>`;
+    drawer.classList.remove('translate-y-full');
+
+    try {
+        const res = await fetch(`${BASE_URL}/allepisode?shortPlayId=${id}`);
+        const result = await res.json();
+        
+        // Mengambil data dari shortPlayEpisodeInfos sesuai JSON API
+        const eps = result.shortPlayEpisodeInfos || result.data || [];
+
+        if (eps.length === 0) {
+            list.innerHTML = `<p class="text-center py-20 text-zinc-500">Daftar episode tidak ditemukan.</p>`;
+            return;
+        }
+
+        list.innerHTML = eps.map(ep => `
+            <div onclick="playNew('${ep.playVoucher}')" class="flex items-center gap-4 p-4 bg-zinc-800 rounded-2xl active:bg-red-600 transition cursor-pointer">
+                <div class="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center font-bold text-xs">${ep.episodeNo}</div>
+                <div class="flex-1">
+                    <p class="text-sm font-bold">Episode ${ep.episodeNo}</p>
+                    <p class="text-[10px] text-zinc-400 uppercase tracking-tighter">${ep.playClarity || 'HD'}</p>
+                </div>
+                <div class="text-xs">▶️</div>
+            </div>
+        `).join('');
+    } catch (err) {
+        list.innerHTML = `<p class="text-center py-20 text-red-500">Error mengambil episode.</p>`;
+    }
+}
+
+function playNew(url) {
+    const video = document.querySelector('video');
+    if (video && url) {
+        video.src = url;
+        video.play();
+        closeDrawer();
+        document.getElementById('content-list').scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+function closeDrawer() { document.getElementById('episode-drawer').classList.add('translate-y-full'); }
+function changeTab(endpoint) { fetchData(endpoint); }
+
+window.onload = () => fetchData('theaters');
+
