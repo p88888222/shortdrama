@@ -10,7 +10,6 @@
         body { background-color: #0b0b0b; color: white; font-family: sans-serif; }
         .tab-active { color: #ff4500; border-bottom: 3px solid #ff4500; font-weight: bold; }
         .drama-card { background: #161616; border: 1px solid #222; border-radius: 12px; transition: 0.2s; }
-        .drama-card:active { transform: scale(0.98); background: #1f1f1f; }
         .vjs-big-play-centered .vjs-big-play-button { background-color: #ff4500 !important; border: none !important; border-radius: 50% !important; }
     </style>
 </head>
@@ -32,24 +31,20 @@
     </div>
 
     <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
-
     <script>
-        // Gunakan Proxy untuk menembus CORS Railway
+        // Menggunakan CORS Proxy "AllOrigins" melalui endpoint RAW untuk menghindari blokir browser
         const PROXY = "https://api.allorigins.win/raw?url=";
         const BASE_URL = "https://api.sansekai.my.id/api";
         
         const player = videojs('main-player', { 
             controls: true, 
             autoplay: false, 
-            preload: 'auto',
             fluid: true
         });
 
-        // 1. Fungsi Utama Ambil Drama
         async function changeTab(tabName) {
             const container = document.getElementById('main-content');
             
-            // UI Tab
             document.getElementById('tab-foryou').className = tabName === 'foryou' ? 'tab-active pb-2' : 'text-zinc-500 pb-2';
             document.getElementById('tab-theaters').className = tabName === 'theaters' ? 'tab-active pb-2' : 'text-zinc-500 pb-2';
             
@@ -57,21 +52,26 @@
 
             try {
                 const endpoint = tabName === 'foryou' ? '/netshort/foryou' : '/netshort/theaters';
+                // Encode URL agar proxy dapat memproses karakter khusus dengan benar
                 const finalUrl = PROXY + encodeURIComponent(BASE_URL + endpoint);
                 
                 const response = await fetch(finalUrl);
+                if (!response.ok) throw new Error("Gagal mengambil data dari Proxy.");
+                
                 const result = await response.json();
 
-                // LOGIKA PENCARIAN DATA (Sesuai JSON contentInfos)
+                // Logika pencarian data di dalam properti contentInfos sesuai respon API Anda
                 let dramaList = [];
-                if (result.data && result.data.contentInfos) {
-                    dramaList = result.data.contentInfos;
-                } else if (Array.isArray(result.data)) {
-                    dramaList = result.data[0]?.contentInfos || result.data;
+                if (result.data) {
+                    if (result.data.contentInfos) {
+                        dramaList = result.data.contentInfos;
+                    } else if (Array.isArray(result.data)) {
+                        dramaList = result.data[0]?.contentInfos || result.data;
+                    }
                 }
 
-                if (dramaList.length === 0) {
-                    container.innerHTML = '<div class="text-center py-20 text-zinc-700 text-xs italic">Drama tidak ditemukan. Pastikan API mengirimkan contentInfos.</div>';
+                if (!dramaList || dramaList.length === 0) {
+                    container.innerHTML = '<div class="text-center py-20 text-zinc-500 text-xs italic">Drama tidak ditemukan. Periksa struktur contentInfos.</div>';
                     return;
                 }
 
@@ -79,37 +79,30 @@
                 dramaList.forEach(item => {
                     const card = document.createElement('div');
                     card.className = "drama-card flex gap-4 p-3 mb-3 cursor-pointer";
-                    
-                    // Gunakan shortPlayId dan shortPlayName dari JSON Anda
                     card.innerHTML = `
-                        <img src="${item.coverUrl || 'https://via.placeholder.com/150x200?text=No+Cover'}" class="w-20 h-28 object-cover rounded-lg bg-zinc-800 shadow-md">
+                        <img src="${item.coverUrl || 'https://via.placeholder.com/150x200'}" class="w-20 h-28 object-cover rounded-lg bg-zinc-800 shadow-md">
                         <div class="flex flex-col justify-center overflow-hidden">
                             <h3 class="text-sm font-bold text-zinc-100 truncate pr-4">${item.shortPlayName}</h3>
-                            <div class="flex flex-wrap gap-1 mt-2">
-                                ${item.labelArray ? item.labelArray.slice(0, 2).map(l => `<span class="text-[9px] bg-zinc-800 px-2 py-0.5 rounded text-zinc-500 font-medium">${l}</span>`).join('') : ''}
-                            </div>
                             <p class="text-[10px] text-orange-500 mt-4 font-bold uppercase tracking-widest">Tonton Sekarang →</p>
                         </div>
                     `;
-                    // Klik untuk ke daftar episode
                     card.onclick = () => loadAllEpisodes(item.shortPlayId);
                     container.appendChild(card);
                 });
             } catch (err) {
-                container.innerHTML = `<div class="text-red-500 text-center py-20 text-xs">Gagal memuat API.<br>Penyebab: ${err.message}</div>`;
+                container.innerHTML = `<div class="text-red-500 text-center py-20 text-xs">Gagal memuat API<br>Penyebab: ${err.message}</div>`;
             }
         }
 
-        // 2. Fungsi Ambil Episode per Drama
         async function loadAllEpisodes(shortPlayId) {
             const container = document.getElementById('main-content');
-            container.innerHTML = '<div class="text-center py-20 text-zinc-600 text-sm">Mengambil daftar episode...</div>';
+            container.innerHTML = '<div class="text-center py-20 text-zinc-600 text-sm italic">Memuat daftar episode...</div>';
 
             try {
                 const epUrl = `${BASE_URL}/netshort/allEpisode?shortPlayId=${shortPlayId}`;
                 const response = await fetch(PROXY + encodeURIComponent(epUrl));
                 const result = await response.json();
-                const data = result.data; // shortPlayName & episodes[]
+                const data = result.data;
 
                 container.innerHTML = `
                     <div class="flex items-center justify-between mb-6">
@@ -118,9 +111,9 @@
                     </div>
                     <div class="space-y-2">
                         ${data.episodes.map(ep => `
-                            <div onclick="playVideo('${ep.video_url}')" class="p-4 bg-zinc-900/50 rounded-xl flex justify-between items-center border border-zinc-800 hover:border-orange-500 transition">
-                                <span class="text-sm font-medium">Episode ${ep.episode_number}</span>
-                                <span class="text-orange-500 text-xs font-bold">PLAY</span>
+                            <div onclick="playVideo('${ep.video_url}')" class="p-4 bg-zinc-900/50 rounded-xl flex justify-between items-center border border-zinc-800 active:border-orange-500 transition">
+                                <span class="text-sm font-medium text-zinc-200">Episode ${ep.episode_number}</span>
+                                <span class="text-orange-500 text-xs font-bold font-mono">PLAY</span>
                             </div>
                         `).join('')}
                     </div>
@@ -131,7 +124,6 @@
             }
         }
 
-        // 3. Fungsi Putar Video
         function playVideo(url) {
             if (!url) return alert("Video tidak tersedia.");
             const type = url.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
@@ -140,7 +132,6 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // Start
         document.addEventListener('DOMContentLoaded', () => changeTab('foryou'));
     </script>
 </body>
