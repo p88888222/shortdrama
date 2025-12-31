@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NetShort App</title>
+    <title>NetShort WebApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Sembunyikan scrollbar tapi tetap bisa scroll */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Snap scrolling seperti TikTok */
         .snap-container {
             scroll-snap-type: y mandatory;
             overflow-y: scroll;
@@ -26,34 +24,38 @@
 <body class="bg-black text-white overflow-hidden">
 
     <main id="content-list" class="snap-container no-scrollbar">
-        <div class="flex h-screen items-center justify-center">
-            <p class="animate-pulse">Memuat Drama...</p>
+        <div class="h-screen flex items-center justify-center">
+            <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-red-500"></div>
         </div>
     </main>
 
-    <nav class="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent pb-6 pt-10 flex justify-around items-end z-50">
+    <div id="episode-drawer" class="fixed inset-x-0 bottom-0 z-[60] bg-zinc-900 rounded-t-3xl transition-transform transform translate-y-full h-[70vh] flex flex-col shadow-2xl border-t border-zinc-800">
+        <div class="p-4 flex justify-between items-center border-b border-zinc-800">
+            <div class="flex flex-col">
+                <span class="text-[10px] text-red-500 font-bold uppercase tracking-wider">Daftar Episode</span>
+                <h2 id="drawer-title" class="font-bold truncate max-w-[200px]">Judul Drama</h2>
+            </div>
+            <button onclick="closeDrawer()" class="bg-zinc-800 h-10 w-10 rounded-full text-2xl">&times;</button>
+        </div>
+        <div id="episode-list" class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar pb-10">
+            </div>
+    </div>
+
+    <nav class="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent pb-6 pt-10 flex justify-around items-end z-50">
         <button onclick="changeTab('theaters')" class="flex flex-col items-center gap-1 group">
-            <span class="text-2xl group-focus:scale-110 transition">🎭</span>
-            <span class="text-[10px] font-medium">Theaters</span>
+            <span class="text-2xl opacity-50 group-focus:opacity-100">🎭</span>
+            <span class="text-[10px]">Theaters</span>
         </button>
         <button onclick="changeTab('foryou')" class="flex flex-col items-center gap-1 group">
-            <div class="bg-red-600 p-2 rounded-full -mt-4 shadow-lg shadow-red-500/50">
+            <div class="bg-red-600 p-2 rounded-full -mt-4 shadow-lg">
                 <span class="text-xl">🔥</span>
             </div>
-            <span class="text-[10px] font-medium">For You</span>
+            <span class="text-[10px]">For You</span>
         </button>
         <button onclick="changeTab('search')" class="flex flex-col items-center gap-1 group">
-            <span class="text-2xl group-focus:scale-110 transition">🔍</span>
-            <span class="text-[10px] font-medium">Search</span>
+            <span class="text-2xl opacity-50 group-focus:opacity-100">🔍</span>
+            <span class="text-[10px]">Search</span>
         </button>
-        <div id="episode-drawer" class="fixed inset-x-0 bottom-0 z-[60] bg-zinc-900 rounded-t-3xl transition-transform transform translate-y-full h-[70vh] flex flex-col shadow-2xl border-t border-zinc-700">
-    <div class="p-4 flex justify-between items-center border-b border-zinc-800">
-        <h2 id="drawer-title" class="font-bold truncate pr-4">Daftar Episode</h2>
-        <button onclick="closeDrawer()" class="text-2xl text-zinc-400">&times;</button>
-    </div>
-    <div id="episode-list" class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
-        </div>
-</div>
     </nav>
 
     <script src="script.js"></script>
