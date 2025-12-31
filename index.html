@@ -1,131 +1,82 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NetShort Player</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
-    <style>
-        body { background-color: #0b0b0b; color: white; font-family: sans-serif; }
-        .tab-active { color: #ff4500; border-bottom: 3px solid #ff4500; font-weight: bold; }
-        .drama-card { background: #161616; border: 1px solid #222; border-radius: 12px; transition: 0.2s; }
-        .vjs-big-play-centered .vjs-big-play-button { background-color: #ff4500 !important; border-radius: 50% !important; }
-    </style>
-</head>
-<body class="max-w-md mx-auto min-h-screen border-x border-zinc-900 bg-black">
+<script>
+    // URL ini sekarang memanggil server proxy buatan kita sendiri
+    const PROXY = "/api-proxy?url="; 
+    const BASE_API = "https://api.sansekai.my.id/api";
+    
+    const videoPlayer = videojs('player', { controls: true, autoplay: false, fluid: true });
 
-    <div class="sticky top-0 z-50 bg-black">
-        <div class="aspect-video w-full bg-zinc-900 shadow-lg">
-            <video id="main-player" class="video-js vjs-fluid vjs-big-play-centered" playsinline></video>
-        </div>
-        <div class="flex justify-around bg-zinc-950 border-b border-zinc-800 py-4 font-bold text-[11px] tracking-widest uppercase">
-            <button onclick="changeTab('foryou')" id="tab-foryou" class="pb-2">FOR YOU</button>
-            <button onclick="changeTab('theaters')" id="tab-theaters" class="pb-2 text-zinc-500">THEATERS</button>
-        </div>
-    </div>
-
-    <div id="main-content" class="p-4 space-y-4 pb-24 text-center">
-        <div class="py-20 text-zinc-600 text-sm italic">Memulai aplikasi...</div>
-    </div>
-
-    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
-    <script>
-        // Gunakan Proxy yang lebih andal untuk menembus proteksi API
-        const PROXY_URL = "https://api.allorigins.win/raw?url=";
-        const API_BASE = "https://api.sansekai.my.id/api";
+    async function loadTab(tabName) {
+        const container = document.getElementById('main-content');
+        document.getElementById('tab-foryou').className = tabName === 'foryou' ? 'tab-active pb-1' : 'text-zinc-500 pb-1';
+        document.getElementById('tab-theaters').className = tabName === 'theaters' ? 'tab-active pb-1' : 'text-zinc-500 pb-1';
         
-        const player = videojs('main-player', { controls: true, autoplay: false, fluid: true });
+        container.innerHTML = '<div class="text-center py-20">Menghubungkan ke Server Sendiri...</div>';
 
-        async function changeTab(tabName) {
-            const container = document.getElementById('main-content');
-            document.getElementById('tab-foryou').className = tabName === 'foryou' ? 'tab-active pb-2' : 'text-zinc-500 pb-2';
-            document.getElementById('tab-theaters').className = tabName === 'theaters' ? 'tab-active pb-2' : 'text-zinc-500 pb-2';
+        try {
+            const endpoint = tabName === 'foryou' ? '/netshort/foryou' : '/netshort/theaters';
+            const targetUrl = BASE_API + endpoint;
             
-            container.innerHTML = '<div class="py-20 text-zinc-700 text-sm animate-pulse">Menghubungkan ke API...</div>';
+            // Memanggil /api-proxy?url=...
+            const response = await fetch(PROXY + encodeURIComponent(targetUrl));
+            const result = await response.json();
 
-            try {
-                const target = `${API_BASE}/netshort/${tabName}`;
-                // Mengambil data mentah untuk menghindari error parsing proxy
-                const response = await fetch(PROXY_URL + encodeURIComponent(target));
-                const result = await response.json();
+            let dramaList = result.data?.contentInfos || (Array.isArray(result.data) ? result.data[0]?.contentInfos : []);
 
-                // Deteksi data di berbagai level (Flexible Parsing)
-                let dramaList = [];
-                if (result.data) {
-                    dramaList = result.data.contentInfos || (Array.isArray(result.data) ? result.data[0]?.contentInfos : []);
-                }
-
-                if (!dramaList || dramaList.length === 0) {
-                    container.innerHTML = '<div class="py-20 text-zinc-500 text-xs">Drama tidak ditemukan. Pastikan data API tersedia.</div>';
-                    return;
-                }
-
-                container.innerHTML = "";
-                dramaList.forEach(item => {
-                    const card = document.createElement('div');
-                    card.className = "drama-card flex gap-4 p-3 mb-3 cursor-pointer text-left";
-                    card.innerHTML = `
-                        <img src="${item.coverUrl || 'https://via.placeholder.com/150x200'}" class="w-20 h-28 object-cover rounded-lg bg-zinc-800 shadow-md">
-                        <div class="flex flex-col justify-center overflow-hidden">
-                            <h3 class="text-sm font-bold text-zinc-100 truncate pr-4">${item.shortPlayName}</h3>
-                            <div class="flex flex-wrap gap-1 mt-2">
-                                ${item.labelArray ? item.labelArray.slice(0, 2).map(l => `<span class="text-[9px] bg-zinc-800 px-2 py-0.5 rounded text-zinc-500 font-medium">${l}</span>`).join('') : ''}
-                            </div>
-                            <p class="text-[10px] text-orange-500 mt-4 font-bold uppercase tracking-widest">Tonton Sekarang →</p>
-                        </div>
-                    `;
-                    card.onclick = () => loadAllEpisodes(item.shortPlayId);
-                    container.appendChild(card);
-                });
-            } catch (err) {
-                container.innerHTML = `<div class="py-20 text-red-500 text-[10px] px-6 text-center">
-                    Gagal memuat API.<br>Pesan: ${err.message}<br>
-                    <button onclick="changeTab('${tabName}')" class="mt-4 bg-zinc-900 px-4 py-2 rounded-full border border-zinc-800">Coba Lagi</button>
-                </div>`;
+            if (!dramaList || dramaList.length === 0) {
+                container.innerHTML = '<div class="text-center py-20">Data masih kosong.</div>';
+                return;
             }
-        }
 
-        async function loadAllEpisodes(shortPlayId) {
-            const container = document.getElementById('main-content');
-            container.innerHTML = '<div class="py-20 text-zinc-600 text-sm italic">Memuat daftar episode...</div>';
-
-            try {
-                const target = `${API_BASE}/netshort/allEpisode?shortPlayId=${shortPlayId}`;
-                const response = await fetch(PROXY_URL + encodeURIComponent(target));
-                const result = await response.json();
-                const data = result.data;
-
-                container.innerHTML = `
-                    <div class="flex items-center justify-between mb-6">
-                        <button onclick="changeTab('foryou')" class="text-[10px] bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full font-bold">← KEMBALI</button>
-                        <h2 class="text-[10px] font-bold text-orange-500 truncate uppercase w-40 text-right">${data.shortPlayName}</h2>
-                    </div>
-                    <div class="space-y-2">
-                        ${data.episodes.map(ep => `
-                            <div onclick="playVideo('${ep.video_url}')" class="p-4 bg-zinc-900/50 rounded-xl flex justify-between items-center border border-zinc-800 active:border-orange-500 text-left">
-                                <span class="text-sm font-medium text-zinc-200">Episode ${ep.episode_number}</span>
-                                <span class="text-orange-500 text-xs font-bold">PLAY</span>
-                            </div>
-                        `).join('')}
+            container.innerHTML = "";
+            dramaList.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "drama-card flex gap-4 p-3 rounded-xl cursor-pointer bg-zinc-900/40 mb-3 border border-zinc-800/50";
+                card.innerHTML = `
+                    <img src="${item.coverUrl}" class="w-20 h-28 object-cover rounded-lg">
+                    <div class="flex flex-col justify-center">
+                        <h3 class="text-sm font-bold truncate w-48">${item.shortPlayName}</h3>
+                        <p class="text-[10px] text-orange-500 mt-2 font-bold">TONTON SEKARANG</p>
                     </div>
                 `;
-                if(data.episodes.length > 0) playVideo(data.episodes[0].video_url);
-            } catch (err) {
-                container.innerHTML = '<div class="py-20 text-red-500 text-xs text-center">Gagal memuat daftar episode.</div>';
-            }
+                card.onclick = () => loadEpisodes(item.shortPlayId);
+                container.appendChild(card);
+            });
+        } catch (err) {
+            container.innerHTML = `<div class="text-center py-20">Server Proxy Error: ${err.message}</div>`;
         }
+    }
 
-        function playVideo(url) {
-            if (!url) return alert("Video tidak tersedia.");
-            const type = url.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
-            player.src({ src: url, type: type });
-            player.play();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+    async function loadEpisodes(id) {
+        const container = document.getElementById('main-content');
+        container.innerHTML = '<div class="text-center py-20 italic">Memuat list...</div>';
+        try {
+            const target = `${BASE_API}/netshort/allEpisode?shortPlayId=${id}`;
+            const res = await fetch(PROXY + encodeURIComponent(target));
+            const result = await res.json();
+            const data = result.data;
 
-        document.addEventListener('DOMContentLoaded', () => changeTab('foryou'));
-    </script>
-</body>
-</html>
+            container.innerHTML = `
+                <button onclick="loadTab('foryou')" class="mb-4 text-xs text-zinc-500 underline">← Kembali</button>
+                <div class="space-y-2">
+                    ${data.episodes.map(ep => `
+                        <div onclick="playVideo('${ep.video_url}')" class="p-4 bg-zinc-900 rounded-lg flex justify-between border border-zinc-800">
+                            <span class="text-sm font-medium text-zinc-200">Episode ${ep.episode_number}</span>
+                            <span class="text-orange-500 text-xs font-bold">PLAY</span>
+                        </div>
+                    `).join('')}
+                </div>`;
+            if (data.episodes.length > 0) playVideo(data.episodes[0].video_url);
+        } catch (e) { container.innerHTML = 'Gagal memuat episode.'; }
+    }
+
+    function playVideo(url) {
+        if (!url) return;
+        const type = url.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
+        videoPlayer.src({ src: url, type: type });
+        videoPlayer.play();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => loadTab('foryou'));
+</script>
 
