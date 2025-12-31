@@ -41,7 +41,8 @@ async function changeTab(type, el) {
     container.innerHTML = '<div class="col-span-full py-20 text-center text-xs animate-pulse text-red-500 font-bold">MENGHUBUNGKAN DATABASE...</div>';
 
     // Endpoint tetap sesuai permintaan Anda
-    let path = (type === 'foryou') ? '/netshort/foryou' : `/netshort/${type}`;
+    let path = (type === 'foryou') ? '/netshort/foryou' : `/netshort${type}`;
+    let path = (type === 'theaters') ? '/netshort/theaters' : `/netshort${type}`;
     
     const data = await apiGet(path);
     renderGrid(data, type);
