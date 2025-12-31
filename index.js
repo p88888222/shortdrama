@@ -6,14 +6,15 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(__dirname));
 
-// Jembatan Proxy agar tidak kena blokir browser (CORS)
+// Jembatan Proxy untuk mengatasi CORS browser
 app.get('/api-proxy', async (req, res) => {
     try {
-        const pathParam = req.query.path;
-        const shortPlayId = req.query.shortPlayId;
+        const { path: apiPath, shortPlayId } = req.query;
+        let targetUrl = `https://api.sansekai.my.id/api${apiPath}`;
         
-        let targetUrl = `https://api.sansekai.my.id/api${pathParam}`;
-        if (shortPlayId) targetUrl += `?shortPlayId=${shortPlayId}`;
+        if (shortPlayId) {
+            targetUrl += `?shortPlayId=${shortPlayId}`;
+        }
 
         const response = await axios.get(targetUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0' }
@@ -29,6 +30,6 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server aktif di port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
 
