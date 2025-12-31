@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dramaxin Box</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-black text-white">
+    <nav class="p-4 flex gap-4 overflow-x-auto">
+        <button onclick="changeTab('foryou', this)" class="nav-btn tab-active">For You</button>
+        <button onclick="changeTab('theaters', this)" class="nav-btn text-gray-500">Theaters</button>
+    </nav>
+
+    <h2 id="sectionLabel" class="p-4 font-bold text-xl">FOR YOU</h2>
+    
+    <div id="mainContainer" class="grid grid-cols-3 gap-2 p-2">
+        </div>
+
+    <div id="detailModal" class="fixed inset-0 bg-black hidden z-50 overflow-y-auto">
+        <button onclick="closeModal()" class="absolute top-4 right-4 z-50 bg-white/10 p-2 rounded-full">X</button>
+        <div id="playerContainer" class="hidden sticky top-0 bg-black">
+            <video id="mainPlayer" controls class="w-full aspect-video"></video>
+            <div class="flex justify-between p-2">
+                <button id="prevBtn" class="bg-red-600 px-4 py-2 rounded">Prev</button>
+                <button id="nextBtn" class="bg-red-600 px-4 py-2 rounded">Next</button>
+            </div>
+        </div>
+        <div class="p-4">
+            <h1 id="modalTitle" class="text-xl font-bold"></h1>
+            <p id="modalDesc" class="text-sm text-gray-400 mt-2"></p>
+            <div id="modalEpisodes" class="mt-6 grid gap-2"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
