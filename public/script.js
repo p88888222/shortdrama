@@ -77,6 +77,10 @@ function createDramaCard(item, isHist = false) {
         </div>
         <h3 class="text-[9px] font-bold line-clamp-2 text-gray-400 uppercase leading-tight">${title}</h3>
     `;
+    if (!isHist && (totalEp === "??" || totalEp === 0)) {
+        const badgeElement = div.querySelector('.ep-badge');
+        fetchTotalEpisode(id, badgeElement);
+    }
     return div;
 }
 async function fetchTotalEpisode(id, element) {
