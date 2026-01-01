@@ -62,21 +62,29 @@ function createDramaCard(item, isHist = false) {
     const cover = item.cover || item.shortPlayCover || item.groupShortPlayCover;
     const finalCover = cover?.startsWith('http') ? cover : `https://api.sansekai.my.id${cover?.startsWith('/') ? '' : '/'}${cover}`;
     
-    // Tampilan Episode di List (Biarkan apa adanya dari API agar stabil)
-    const totalEp = item.totalEpisode || item.episodeNum || "??";
+    // 1. Coba deteksi jumlah episode dari berbagai kemungkinan nama variabel API
+    const totalEp = item.totalEpisode || item.episodeNum || item.shortPlayEpisodeNum || item.shortPlayEpisodeInfos?.length || "??";
+    const badgeText = isHist ? `EP ${item.lastEp}` : `${totalEp} EP`;
 
     const div = document.createElement('div');
     div.className = "cursor-pointer active:scale-95 transition-all";
     div.onclick = () => openDetail(id, title, finalCover, isHist ? item.lastEp : 1);
     div.innerHTML = `
         <div class="aspect-[3/4] rounded-xl overflow-hidden glass mb-1 relative border border-white/5 shadow-lg">
-            <img src="${finalCover}" class="w-full h-full object-cover" loading="lazy">
-            <div class="absolute bottom-1 right-1 bg-red-600 text-[8px] font-black px-1.5 py-0.5 rounded text-white">
-                ${isHist ? 'EP '+item.lastEp : totalEp + ' EP'}
+            <img src="${finalCover}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://via.placeholder.com/300x400?text=Poster'">
+            <div class="ep-badge absolute bottom-1 right-1 bg-red-600 text-[8px] font-black px-1.5 py-0.5 rounded text-white shadow-xl">
+                ${badgeText}
             </div>
         </div>
-        <h3 class="text-[9px] font-bold line-clamp-2 text-gray-400 uppercase leading-tight">${title}</h3>
+        <h3 class="text-[9px] font-bold line-clamp-2 text-gray-500 uppercase leading-tight">${title}</h3>
     `;
+
+    // 2. AUTO-SYNC: Jika data masih ?? EP, ambil data asli dari API Detail di latar belakang
+    if (!isHist && (totalEp === "??" || totalEp === 0)) {
+        const badgeElement = div.querySelector('.ep-badge');
+        fetchTotalEpisode(id, badgeElement);
+    }
+
     return div;
 }
 
