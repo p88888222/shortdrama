@@ -5,7 +5,6 @@ let currentEpIndex = -1;
 async function apiGet(path) {
     try {
         const res = await fetch(`${API_BASE}${path}`);
-        if (!res.ok) return null;
         const json = await res.json();
         return json.data || json;
     } catch (e) { return null; }
@@ -14,12 +13,12 @@ async function apiGet(path) {
 async function performSearch(query) {
     if (!query) return;
     const container = document.getElementById('mainContainer');
-    document.getElementById('sectionLabel').innerText = `SEARCH: ${query.toUpperCase()}`;
-    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse">MENCARI...</div>';
+    document.getElementById('sectionLabel').innerText = `HASIL CARI: ${query.toUpperCase()}`;
+    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse font-bold">MENCARI...</div>';
     
     const res = await apiGet(`/netshort/search?query=${encodeURIComponent(query)}`);
-    // Struktur search dari respon API user
-    const items = res?.searchCodeSearchResult || res;
+    // Sinkronisasi struktur search
+    const items = res?.searchCodeSearchResult || (Array.isArray(res) ? res : []);
     renderGrid(items, 'search');
 }
 
@@ -29,7 +28,7 @@ async function changeTab(type, el) {
         el.classList.add('tab-active');
     }
     const container = document.getElementById('mainContainer');
-    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse">MEMUAT...</div>';
+    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse font-bold">SINKRONISASI DATA...</div>';
     const path = (type === 'foryou') ? '/netshort/foryou' : '/netshort/theaters';
     const data = await apiGet(path);
     renderGrid(data, type);
@@ -40,62 +39,55 @@ function renderGrid(dataObj, type) {
     const label = document.getElementById('sectionLabel');
     if (type !== 'search') label.innerText = dataObj?.contentName || type.toUpperCase();
 
-    // Deteksi struktur array (search, theaters, foryou)
     let items = [];
     if (dataObj?.contentInfos) items = dataObj.contentInfos;
     else if (Array.isArray(dataObj)) items = dataObj[0]?.contentInfos ? dataObj.flatMap(g => g.contentInfos || []) : dataObj;
-    else if (dataObj?.searchCodeSearchResult) items = dataObj.searchCodeSearchResult;
 
-    container.innerHTML = items.length ? "" : '<p class="col-span-full text-center py-20 opacity-50 text-xs">Kosong</p>';
+    container.innerHTML = items.length ? "" : '<p class="col-span-full text-center py-20 opacity-50 text-xs">Data Kosong</p>';
     
     items.forEach(item => {
-        const id = item.shortPlayId || item.id;
-        const title = item.shortPlayName || item.title;
-        
-        // FIX: Mapping Property dari respon API user
-        const totalEp = item.totalEpisode || item.episodeNum || "??";
-        const desc = item.shotIntroduce || item.shortIntroduce || "Deskripsi tidak tersedia.";
-        const tags = Array.isArray(item.shortPlayLabels) ? item.shortPlayLabels.join(" • ") : "";
+        // --- SINKRONISASI KUNCI DATA API ---
+        const spId = item.shortPlayId || item.id;
+        const spName = item.shortPlayName || item.title || item.bookName;
+        const spIntro = item.shotIntroduce || item.shortIntroduce || "Deskripsi tidak tersedia untuk drama ini.";
+        const spTotal = item.totalEpisode || item.episodeNum || item.shortPlayEpisodeNum || "0";
 
         const rawCover = item.shortPlayCover || item.groupShortPlayCover || item.cover;
         const finalCover = rawCover?.startsWith('http') ? rawCover : `https://api.sansekai.my.id${rawCover?.startsWith('/') ? '' : '/'}${rawCover}`;
 
         const div = document.createElement('div');
         div.className = "cursor-pointer animate-slideUp";
-        // Passing data ke modal
-        div.onclick = () => openDetail(id, title, desc, totalEp, tags);
+        // Masukkan data yang sudah disinkronkan ke fungsi detail
+        div.onclick = () => openDetail(spId, spName, spIntro, spTotal);
         div.innerHTML = `
             <div class="aspect-[3/4] rounded-xl overflow-hidden bg-slate-800 mb-1 relative border border-white/5 shadow-lg">
                 <img src="${finalCover}" class="w-full h-full object-cover">
                 <div class="absolute bottom-1 right-1 bg-red-600 text-[8px] font-black px-1.5 py-0.5 rounded text-white">
-                    ${totalEp} EP
+                    ${spTotal} EP
                 </div>
             </div>
-            <h3 class="text-[9px] font-bold line-clamp-2 text-gray-400 px-1 uppercase leading-tight">${title}</h3>`;
+            <h3 class="text-[9px] font-bold line-clamp-2 text-gray-400 px-1 uppercase leading-tight">${spName}</h3>`;
         container.appendChild(div);
     });
 }
 
-async function openDetail(id, title, desc, totalEp, tags) {
+async function openDetail(id, title, intro, total) {
     const modal = document.getElementById('detailModal');
     const player = document.getElementById('mainPlayer');
     
-    // Reset video & state
     player.pause(); player.src = ""; player.load();
     epData = []; currentEpIndex = -1;
 
     modal.classList.remove('hidden');
     document.body.style.overflow = "hidden";
     
+    // Terapkan data hasil sinkronisasi
     document.getElementById('modalTitle').innerText = title;
-    document.getElementById('modalDesc').innerText = desc; // Di sini shotIntroduce dipasang
-    document.getElementById('modalTotalEp').innerText = `${totalEp} TOTAL EPISODE`;
-    
-    const labelContainer = document.getElementById('modalLabels');
-    labelContainer.innerHTML = tags;
+    document.getElementById('modalDesc').innerText = intro; // Tampilkan shotIntroduce
+    document.getElementById('modalTotalEp').innerText = `${total} TOTAL EPISODE`;
     
     const epList = document.getElementById('modalEpisodes');
-    epList.innerHTML = '<p class="text-center py-5 text-xs text-red-600 animate-pulse font-bold">MENGAMBIL EPISODE...</p>';
+    epList.innerHTML = '<p class="text-center py-5 text-xs text-red-600 animate-pulse font-bold uppercase">Memuat Episode...</p>';
 
     const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
     epData = res?.shortPlayEpisodeInfos || [];
@@ -104,7 +96,7 @@ async function openDetail(id, title, desc, totalEp, tags) {
     epData.forEach((ep, i) => {
         const btn = document.createElement('button');
         btn.id = `ep-btn-${i}`;
-        btn.className = "ep-item w-full text-left bg-white/5 p-4 rounded-xl flex items-center justify-between text-xs border border-white/5 mb-1";
+        btn.className = "ep-item w-full text-left bg-white/5 p-4 rounded-xl flex items-center justify-between text-xs border border-white/5 mb-1 transition-all";
         btn.onclick = () => playEpisode(i);
         btn.innerHTML = `<span>EPISODE ${ep.episodeNo || i+1}</span><i class="fa-solid fa-play text-red-600 opacity-20 text-[10px]"></i>`;
         epList.appendChild(btn);
@@ -117,13 +109,9 @@ function playEpisode(index) {
     if (index < 0 || index >= epData.length) return;
     currentEpIndex = index;
     const player = document.getElementById('mainPlayer');
-    const ep = epData[index];
-    
-    // Gunakan URL video utama
-    player.src = ep.playVoucher || ep.videoUrl;
+    player.src = epData[index].playVoucher || epData[index].videoUrl;
     player.play();
 
-    // Highlighting
     document.querySelectorAll('.ep-item').forEach(el => el.classList.remove('bg-red-600/20', 'border-red-600/40'));
     const activeBtn = document.getElementById(`ep-btn-${index}`);
     if(activeBtn) {
@@ -132,28 +120,22 @@ function playEpisode(index) {
     }
 }
 
-// Simulasi Kualitas Video
 function changeQuality() {
-    const quality = document.getElementById('qualitySelect').value;
     const player = document.getElementById('mainPlayer');
-    const currentTime = player.currentTime;
-    
-    // Pada kenyataannya Anda membutuhkan URL berbeda dari API untuk kualitas berbeda
-    // Di sini kita hanya memuat ulang agar terasa seperti berganti kualitas
-    player.load();
-    player.currentTime = currentTime;
+    const curTime = player.currentTime;
+    player.load(); // Simulasi reload kualitas
+    player.currentTime = curTime;
     player.play();
 }
 
 function playSibling(direction) {
-    const nextIdx = currentEpIndex + direction;
-    if (nextIdx >= 0 && nextIdx < epData.length) playEpisode(nextIdx);
+    const next = currentEpIndex + direction;
+    if (next >= 0 && next < epData.length) playEpisode(next);
 }
 
 function closeModal() {
-    const player = document.getElementById('mainPlayer');
     document.getElementById('detailModal').classList.add('hidden');
-    player.pause(); player.src = "";
+    document.getElementById('mainPlayer').pause();
     document.body.style.overflow = "auto";
 }
 
