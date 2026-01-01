@@ -56,56 +56,28 @@ function renderContent(data, mode) {
     if (!displayed && cats.length > 0) renderContent(cats, 'foryou');
 }
 
-/** * HELPER: CREATE DRAMA CARD
- * Menampilkan kartu drama dengan deteksi jumlah episode yang lebih cerdas
- */
 function createDramaCard(item, isHist = false) {
     const id = item.shortPlayId || item.id;
     const title = item.shortPlayName || item.title || item.bookName;
     const cover = item.cover || item.shortPlayCover || item.groupShortPlayCover;
     const finalCover = cover?.startsWith('http') ? cover : `https://api.sansekai.my.id${cover?.startsWith('/') ? '' : '/'}${cover}`;
     
-    // 1. Coba deteksi jumlah episode dari berbagai kemungkinan nama variabel API
-    const totalEp = item.totalEpisode || item.episodeNum || item.shortPlayEpisodeNum || item.shortPlayEpisodeInfos?.length || "??";
-    const badgeText = isHist ? `EP ${item.lastEp}` : `${totalEp} EP`;
+    // Tampilan Episode di List (Biarkan apa adanya dari API agar stabil)
+    const totalEp = item.totalEpisode || item.episodeNum || "??";
 
     const div = document.createElement('div');
     div.className = "cursor-pointer active:scale-95 transition-all";
     div.onclick = () => openDetail(id, title, finalCover, isHist ? item.lastEp : 1);
     div.innerHTML = `
         <div class="aspect-[3/4] rounded-xl overflow-hidden glass mb-1 relative border border-white/5 shadow-lg">
-            <img src="${finalCover}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://via.placeholder.com/300x400?text=Poster'">
-            <div class="ep-badge absolute bottom-1 right-1 bg-red-600 text-[8px] font-black px-1.5 py-0.5 rounded text-white shadow-xl">
-                ${badgeText}
+            <img src="${finalCover}" class="w-full h-full object-cover" loading="lazy">
+            <div class="absolute bottom-1 right-1 bg-red-600 text-[8px] font-black px-1.5 py-0.5 rounded text-white">
+                ${isHist ? 'EP '+item.lastEp : totalEp + ' EP'}
             </div>
         </div>
-        <h3 class="text-[9px] font-bold line-clamp-2 text-gray-500 uppercase leading-tight">${title}</h3>
+        <h3 class="text-[9px] font-bold line-clamp-2 text-gray-400 uppercase leading-tight">${title}</h3>
     `;
-
-    // 2. AUTO-SYNC: Jika data masih ?? EP, ambil data asli dari API Detail di latar belakang
-    if (!isHist && (totalEp === "??" || totalEp === 0)) {
-        const badgeElement = div.querySelector('.ep-badge');
-        fetchTotalEpisode(id, badgeElement);
-    }
-
     return div;
-}
-
-/** * FUNGSI BACKGROUND FETCH
- * Mengambil total episode secara spesifik jika data di list kosong
- */
-async function fetchTotalEpisode(id, element) {
-    try {
-        const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
-        if (res && res.totalEpisode) {
-            element.innerText = `${res.totalEpisode} EP`;
-            
-            // Opsional: Simpan ke cache sementara agar tidak fetch ulang saat scroll
-            // Ini akan membuat aplikasi terasa sangat cepat
-        }
-    } catch (e) {
-        // Jika gagal, biarkan tetap ?? atau ubah jadi -
-    }
 }
 
 async function openDetail(id, title, cover, startEp = 1) {
