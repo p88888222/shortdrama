@@ -171,7 +171,7 @@ function playEp(idx) {
         t.label = "Indonesia";
         t.srclang = "id";
         t.src = ep.subtitleUrl || ep.m3u8SubtitleUrl;
-        t.default = true; 
+        t.default = false; 
         player.appendChild(t);
     }
 
