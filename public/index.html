@@ -3,27 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DRAMAXIN</title>
+    <title>DRAMAXIN - Premium Short Drama</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background-color: #0b0d12; color: #e2e8f0; font-family: sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0b0d12; color: #e2e8f0; -webkit-tap-highlight-color: transparent; }
         .tab-active { color: #ef4444; border-bottom: 2px solid #ef4444; }
         ::-webkit-scrollbar { display: none; }
         
-        /* Video Player Rasio 4:6 (Awal Kecil & Potret) */
+        /* Video Container 4:6 Potret */
         .video-wrapper { 
-            width: 100%; 
-            max-width: 240px; /* Ukuran awal diperkecil */
-            margin: 15px auto; 
-            aspect-ratio: 4/6; 
-            background: #000; 
-            position: relative; 
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.1);
+            width: 100%; max-width: 260px; margin: 15px auto; 
+            aspect-ratio: 4/6; background: #000; position: relative; 
+            border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);
         }
         video { width: 100%; height: 100%; object-fit: cover; }
+        .control-bar { background: linear-gradient(transparent, rgba(0,0,0,0.8)); transition: opacity 0.3s; }
     </style>
 </head>
 <body>
@@ -32,7 +28,7 @@
             <h1 class="text-2xl font-black text-red-600 italic tracking-tighter">DRAMAXIN</h1>
             <div class="flex-1 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-2">
                 <i class="fa-solid fa-magnifying-glass text-gray-500 text-xs"></i>
-                <input id="searchInput" type="text" placeholder="Cari drama..." class="bg-transparent border-none outline-none text-xs w-full text-white">
+                <input id="searchInput" type="text" placeholder="Cari CEO, Pernikahan..." class="bg-transparent border-none outline-none text-xs w-full text-white">
             </div>
         </div>
         <nav class="flex gap-8 px-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
@@ -42,48 +38,62 @@
     </header>
 
     <main class="p-4">
-        <h2 id="sectionLabel" class="text-[10px] font-black text-gray-500 mb-4 tracking-widest uppercase italic">Memuat...</h2>
+        <h2 id="sectionLabel" class="text-[10px] font-black text-gray-500 mb-4 tracking-widest uppercase italic border-l-2 border-red-600 pl-2">Memuat...</h2>
         <div id="mainContainer" class="grid grid-cols-3 gap-3"></div>
     </main>
 
     <div id="detailModal" class="fixed inset-0 bg-[#0b0d12] z-50 hidden flex flex-col h-full overflow-hidden">
-        <div class="video-wrapper shadow-2xl">
-            <video id="mainPlayer" playsinline controls></video>
-            <button onclick="closeModal()" class="absolute top-2 right-2 w-7 h-7 bg-black/60 rounded-full text-white flex items-center justify-center z-50">
-                <i class="fa-solid fa-xmark text-xs"></i>
+        <div class="video-wrapper shadow-2xl group">
+            <video id="mainPlayer" playsinline></video>
+            
+            <button onclick="closeModal()" class="absolute top-2 right-2 w-8 h-8 bg-black/60 rounded-full text-white flex items-center justify-center z-50">
+                <i class="fa-solid fa-xmark"></i>
             </button>
-            <div class="absolute bottom-2 left-2 z-50">
-                <select id="qualitySelect" onchange="changeQuality()" class="bg-black/60 text-[8px] text-white border border-white/20 rounded px-1">
-                    <option value="1080">1080p</option>
-                    <option value="720" selected>720p</option>
-                    <option value="480">480p</option>
-                </select>
+
+            <div class="control-bar absolute bottom-0 left-0 right-0 p-3 flex items-center justify-between opacity-0 group-hover:opacity-100">
+                <div class="flex items-center gap-3">
+                    <button onclick="togglePlay()" class="text-white text-xs"><i id="playIcon" class="fa-solid fa-play"></i></button>
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-volume-high text-[8px] text-white"></i>
+                        <input type="range" min="0" max="1" step="0.1" value="1" class="w-10 h-1 accent-red-600" oninput="changeVolume(this.value)">
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <select id="qualitySelect" onchange="changeQuality()" class="bg-black/60 text-[8px] text-white border border-white/20 rounded px-1 outline-none">
+                        <option value="1080">1080p</option>
+                        <option value="720" selected>720p</option>
+                        <option value="480">480p</option>
+                    </select>
+                    <button onclick="toggleFullscreen()" class="text-white text-xs"><i class="fa-solid fa-expand"></i></button>
+                </div>
             </div>
         </div>
 
-        <div class="flex justify-center gap-10 py-3 bg-[#0b0d12] border-b border-white/5">
-            <button onclick="playSibling(-1)" class="text-gray-400 hover:text-white transition flex flex-col items-center gap-1">
+        <div class="flex justify-center gap-12 py-3 bg-[#0b0d12] border-b border-white/5">
+            <button onclick="playSibling(-1)" class="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition">
                 <i class="fa-solid fa-backward-step text-lg"></i>
                 <span class="text-[8px] font-bold uppercase">Prev</span>
             </button>
-            <button onclick="playSibling(1)" class="text-gray-400 hover:text-white transition flex flex-col items-center gap-1">
+            <button onclick="playSibling(1)" class="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition">
                 <i class="fa-solid fa-forward-step text-lg"></i>
                 <span class="text-[8px] font-bold uppercase">Next</span>
             </button>
         </div>
         
         <div class="flex-1 overflow-y-auto px-5 pt-4 pb-24">
-            <h1 id="modalTitle" class="text-lg font-bold text-white mb-1 leading-tight"></h1>
-            <div id="modalTotalEp" class="text-[10px] font-black text-red-600 uppercase mb-3"></div>
+            <h1 id="modalTitle" class="text-lg font-bold text-white mb-1"></h1>
+            <div id="modalTotalEp" class="text-[10px] font-black text-red-600 mb-3 uppercase"></div>
             
             <div class="bg-white/5 p-4 rounded-xl mb-6 border border-white/5">
-                <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-2 tracking-widest">Sinopsis</h3>
+                <h3 class="text-[9px] font-bold text-gray-500 uppercase mb-2 tracking-widest">Sinopsis</h3>
                 <p id="modalDesc" class="text-xs text-gray-400 leading-relaxed italic"></p>
             </div>
 
+            <div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Daftar Episode</div>
             <div id="modalEpisodes" class="grid grid-cols-1 gap-2"></div>
         </div>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>
