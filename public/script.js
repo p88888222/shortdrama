@@ -167,31 +167,54 @@ async function openDetail(id, title, cover, startEp = 1) {
 }
 
 function playEp(idx) {
-    if (!epData[idx]) return;
+    if (!epData || !epData[idx]) return;
     currentEpIndex = idx;
     const ep = epData[idx];
 
-    // Menghapus track manual untuk menampilkan teks bahasa bawaan playVoucher
-    const tracks = player.querySelectorAll('track');
-    tracks.forEach(t => t.remove());
+    // 1. Bersihkan track subtitle lama agar tidak menumpuk
+    const oldTracks = player.querySelectorAll('track');
+    oldTracks.forEach(t => t.remove());
 
-    // Menggunakan link playVoucher sebagai prioritas utama
-    player.src = ep.playVoucher || ep.videoUrl;
+    // 2. Set Sumber Video (Prioritas playVoucher)
+    player.src = ep.playVoucher || ep.Url;
+
+    // 3. LOGIKA SUBTITLE: Cek apakah ada file subtitle eksternal
+    // Jika drama bukan 'Sulih Suara', biasanya teks ada di URL terpisah ini.
+    const subUrl = ep.Url || ep.m3u8SubtitleUrl;
     
+    if (subUrl) {
+        const t = document.createElement('track');
+        t.kind = "subtitles";
+        t.label = "Indonesia";
+        t.srclang = "id";
+        t.src = subUrl;
+        t.default = true; // Memaksa subtitle aktif secara otomatis
+        player.appendChild(t);
+        
+        // Memastikan track aktif setelah dimuat
+        t.addEventListener('load', () => {
+            player.textTracks[0].mode = 'showing';
+        });
+    }
+
+    // 4. Jalankan Player
     player.load();
     player.play().catch(e => console.warn("Autoplay ditunda"));
-    playIcon.className = "fa-solid fa-pause";
+    
+    if (playIcon) playIcon.className = "fa-solid fa-pause";
 
+    // Update UI
     document.querySelectorAll('.ep-btn').forEach(b => b.classList.remove('ep-active'));
     document.getElementById(`ep-btn-${idx}`)?.classList.add('ep-active');
 
-    // Menyimpan Riwayat (Maksimal 6 drama)
+    // Simpan History (Maksimal 6 drama terbaru)
     if (activeDrama) {
         const histItem = { ...activeDrama, lastEp: idx + 1 };
         history = [histItem, ...history.filter(h => h.id !== activeDrama.id)].slice(0, 6);
         localStorage.setItem('dramaxin_history', JSON.stringify(history));
     }
 }
+
 
 function updateBookmarkUI() {
     const isBook = bookmarks.find(b => b.id === activeDrama.id);
