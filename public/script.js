@@ -6,7 +6,6 @@ async function apiGet(path) {
     try {
         const res = await fetch(`${API_BASE}${path}`);
         const json = await res.json();
-        // Mengambil data utama dari properti 'data' atau objek itu sendiri
         return json.data || json;
     } catch (e) { return null; }
 }
@@ -15,13 +14,10 @@ async function performSearch(query) {
     if (!query) return;
     const container = document.getElementById('mainContainer');
     const label = document.getElementById('sectionLabel');
-    
-    // Menampilkan indikator pencarian
-    label.innerText = `HASIL CARI: ${query.toUpperCase()}`;
-    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse font-bold uppercase">Mencari Data...</div>';
+    label.innerText = `Search results for "${query}"`;
+    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse font-bold uppercase">Searching...</div>';
     
     const res = await apiGet(`/netshort/search?query=${encodeURIComponent(query)}`);
-    // Mengambil item dari searchCodeSearchResult jika tersedia
     const items = res?.searchCodeSearchResult || (Array.isArray(res) ? res : []);
     renderGrid(items, 'search');
 }
@@ -32,57 +28,52 @@ async function changeTab(type, el) {
         el.classList.add('tab-active');
     }
     const container = document.getElementById('mainContainer');
-    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse font-bold uppercase tracking-widest">Sinkronisasi...</div>';
-    
+    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse font-bold uppercase">Syncing...</div>';
     const path = (type === 'foryou') ? '/netshort/foryou' : '/netshort/theaters';
     const data = await apiGet(path);
     renderGrid(data, type);
 }
 
-/**
- * RENDER GRID
- * Menampilkan contentName sebagai label kategori
- */
 function renderGrid(dataObj, type) {
     const container = document.getElementById('mainContainer');
     const label = document.getElementById('sectionLabel');
-
-    // MENGGUNAKAN contentName DARI API SEBAGAI JUDUL
-    // Jika contentName tidak ada, gunakan nama Tab sebagai cadangan
+    
     const categoryTitle = dataObj?.contentName || (Array.isArray(dataObj) ? dataObj[0]?.contentName : null) || type.toUpperCase();
     label.innerText = categoryTitle;
 
     let items = [];
-    // Deteksi struktur data untuk For You dan Theaters
     if (dataObj?.contentInfos) {
         items = dataObj.contentInfos;
     } else if (Array.isArray(dataObj)) {
         items = dataObj[0]?.contentInfos ? dataObj.flatMap(g => g.contentInfos || []) : dataObj;
     }
 
-    container.innerHTML = items.length ? "" : '<p class="col-span-full text-center py-20 opacity-50 text-xs">Data Tidak Ditemukan</p>';
+    container.innerHTML = items.length ? "" : '<p class="col-span-full text-center py-20 opacity-50 text-xs">No dramas found.</p>';
     
     items.forEach(item => {
-        // Sinkronisasi properti data drama
+        // Sinkronisasi data API (shotIntroduce & totalEpisode)
         const spId = item.shortPlayId || item.id;
         const spName = item.shortPlayName || item.title || "No Title";
-        const spIntro = item.shotIntroduce || item.shortIntroduce || "Deskripsi tidak tersedia.";
+        const spIntro = item.shotIntroduce || item.shortIntroduce || "Description not available.";
         const spTotal = item.totalEpisode || item.episodeNum || "0";
 
         const rawCover = item.shortPlayCover || item.groupShortPlayCover || item.cover;
         const finalCover = rawCover?.startsWith('http') ? rawCover : `https://api.sansekai.my.id${rawCover?.startsWith('/') ? '' : '/'}${rawCover}`;
 
         const div = document.createElement('div');
-        div.className = "cursor-pointer animate-slideUp";
+        div.className = "cursor-pointer group active:scale-95 transition-transform duration-200";
         div.onclick = () => openDetail(spId, spName, spIntro, spTotal);
         div.innerHTML = `
-            <div class="aspect-[3/4] rounded-xl overflow-hidden bg-slate-800 mb-1 relative border border-white/5 shadow-lg active:scale-95 transition">
-                <img src="${finalCover}" class="w-full h-full object-cover" loading="lazy">
-                <div class="absolute bottom-1 right-1 bg-red-600 text-[8px] font-black px-1.5 py-0.5 rounded text-white shadow-xl">
+            <div class="aspect-[2/3] rounded-2xl overflow-hidden bg-slate-800 mb-2 relative border border-white/5 shadow-xl">
+                <img src="${finalCover}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy">
+                <div class="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-[8px] font-black px-1.5 py-0.5 rounded-lg text-white uppercase">
+                    HD
+                </div>
+                <div class="absolute bottom-2 right-2 bg-red-600 text-[8px] font-black px-1.5 py-0.5 rounded-lg text-white shadow-lg">
                     ${spTotal} EP
                 </div>
             </div>
-            <h3 class="text-[9px] font-bold line-clamp-2 text-gray-400 px-1 uppercase leading-tight tracking-tighter">${spName}</h3>`;
+            <h3 class="text-[10px] font-bold line-clamp-2 text-gray-300 px-1 uppercase leading-tight tracking-tight">${spName}</h3>`;
         container.appendChild(div);
     });
 }
@@ -91,7 +82,6 @@ async function openDetail(id, title, intro, total) {
     const modal = document.getElementById('detailModal');
     const player = document.getElementById('mainPlayer');
     
-    // Reset player agar tidak memutar drama sebelumnya
     player.pause(); player.src = ""; player.load();
     epData = []; currentEpIndex = -1;
 
@@ -100,12 +90,11 @@ async function openDetail(id, title, intro, total) {
     
     document.getElementById('modalTitle').innerText = title;
     document.getElementById('modalDesc').innerText = intro; 
-    document.getElementById('modalTotalEp').innerText = `${total} TOTAL EPISODE`; 
+    document.getElementById('modalTotalEp').innerText = `${total} Episodes`; 
     
     const epList = document.getElementById('modalEpisodes');
-    epList.innerHTML = '<p class="text-center py-5 text-xs text-red-600 animate-pulse font-bold">LOADING EPISODE...</p>';
+    epList.innerHTML = '<p class="text-center py-5 text-xs text-red-600 animate-pulse font-bold">LOADING...</p>';
 
-    // Mengambil daftar episode berdasarkan shortPlayId
     const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
     epData = res?.shortPlayEpisodeInfos || [];
     
@@ -113,9 +102,14 @@ async function openDetail(id, title, intro, total) {
     epData.forEach((ep, i) => {
         const btn = document.createElement('button');
         btn.id = `ep-btn-${i}`;
-        btn.className = "ep-item w-full text-left bg-white/5 p-4 rounded-xl flex items-center justify-between text-xs border border-white/5 mb-1 active:bg-red-600/20 transition-all";
+        btn.className = "ep-item w-full text-left bg-white/5 p-4 rounded-2xl flex items-center justify-between text-xs border border-white/5 mb-2 active:bg-red-600/20 transition-all";
         btn.onclick = () => playEpisode(i);
-        btn.innerHTML = `<span>EPISODE ${ep.episodeNo || i+1}</span><i class="fa-solid fa-play text-red-600 opacity-20 text-[10px]"></i>`;
+        btn.innerHTML = `
+            <div class="flex items-center gap-3">
+                <span class="w-6 h-6 rounded-lg glass-panel flex items-center justify-center text-[9px] font-black">${i+1}</span>
+                <span class="font-bold">Episode ${ep.episodeNo || i+1}</span>
+            </div>
+            <i class="fa-solid fa-circle-play text-red-600 text-lg opacity-40"></i>`;
         epList.appendChild(btn);
     });
 
@@ -130,7 +124,7 @@ function playEpisode(index) {
     
     player.src = epData[index].playVoucher || epData[index].videoUrl;
     player.play();
-    if(playIcon) playIcon.className = "fa-solid fa-pause";
+    if(playIcon) playIcon.className = "fa-solid fa-pause text-lg";
 
     document.querySelectorAll('.ep-item').forEach(el => el.classList.remove('bg-red-600/20', 'border-red-600/40'));
     const activeBtn = document.getElementById(`ep-btn-${index}`);
@@ -140,12 +134,11 @@ function playEpisode(index) {
     }
 }
 
-// VIDEO CONTROLS LOGIC
 function togglePlay() {
     const player = document.getElementById('mainPlayer');
     const playIcon = document.getElementById('playIcon');
-    if (player.paused) { player.play(); if(playIcon) playIcon.className = "fa-solid fa-pause"; }
-    else { player.pause(); if(playIcon) playIcon.className = "fa-solid fa-play"; }
+    if (player.paused) { player.play(); playIcon.className = "fa-solid fa-pause text-lg"; }
+    else { player.pause(); playIcon.className = "fa-solid fa-play ml-1 text-lg"; }
 }
 
 function changeVolume(val) { document.getElementById('mainPlayer').volume = val; }
