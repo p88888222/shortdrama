@@ -7,8 +7,7 @@ let currentDramaInfo = null;
 const player = document.getElementById('mainPlayer'), playIcon = document.getElementById('playIcon');
 const seekBar = document.getElementById('seekBar'), volBar = document.getElementById('volBar');
 
-/** * 1. LOGIKA VIDEO PLAYER 
- */
+/** * 1. VIDEO PLAYER LOGIC */
 if (player) {
     player.ontimeupdate = () => {
         const val = (player.currentTime / player.duration) * 100 || 0;
@@ -27,8 +26,7 @@ function formatTime(sec) {
     return `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
 }
 
-/** * 2. NAVIGASI UTAMA
- */
+/** * 2. NAVIGASI UTAMA */
 async function switchView(mode, el) {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('nav-active'));
     if (el) el.classList.add('nav-active');
@@ -43,24 +41,28 @@ async function switchView(mode, el) {
     renderContent(data, mode);
 }
 
-/** * 3. RENDER KONTEN DENGAN FILTER KATEGORI DINAMIS
- */
+/** * 3. RENDER KONTEN (FIX TAB KOSONG) */
 function renderContent(data, mode) {
     const content = document.getElementById('appContent');
     content.innerHTML = "";
     
     let categories = Array.isArray(data) ? data : (data.contentInfos ? [data] : []);
 
-    // Tambahkan Chip Filter di Halaman Home
-    if (mode === 'home') {
+    // Filter Chip Otomatis berdasarkan kategori yang ada di API
+    if (mode === 'home' && categories.length > 0) {
         const filterWrap = document.createElement('div');
         filterWrap.className = "flex gap-2 overflow-x-auto pb-4 mb-2 no-scrollbar";
-        const tags = ["Semua", "Romance", "CEO", "Action", "Drama", "Comedy"];
-        tags.forEach(tag => {
+        
+        const allTags = ["Semua", ...new Set(categories.map(c => c.contentName))];
+        allTags.forEach(tag => {
             const chip = document.createElement('button');
-            chip.className = "px-4 py-1.5 glass-card rounded-full text-[10px] font-bold whitespace-nowrap text-gray-400 hover:text-white transition";
+            chip.className = "filter-chip px-4 py-1.5 glass-card rounded-full text-[10px] font-bold whitespace-nowrap text-gray-400";
             chip.innerText = tag;
-            chip.onclick = () => filterByTag(tag, categories);
+            chip.onclick = () => {
+                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('text-white', 'bg-red-600/20'));
+                chip.classList.add('text-white', 'bg-red-600/20');
+                filterByTag(tag);
+            };
             filterWrap.appendChild(chip);
         });
         content.appendChild(filterWrap);
@@ -76,11 +78,11 @@ function renderContent(data, mode) {
         if (shouldShow && cat.contentInfos?.length) {
             const section = document.createElement('section');
             section.className = "mb-8 drama-section";
-            section.dataset.catName = name;
+            section.dataset.tagName = cat.contentName;
             section.innerHTML = `
                 <div class="flex items-center gap-2 mb-4">
                     <div class="w-1 h-3 bg-red-600 rounded-full"></div>
-                    <h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">${cat.contentName || 'REKOMENDASI'}</h2>
+                    <h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">${cat.contentName}</h2>
                 </div>
                 <div class="grid grid-cols-3 gap-3"></div>
             `;
@@ -91,15 +93,13 @@ function renderContent(data, mode) {
     });
 
     if (!hasDisplayed && categories.length > 0) {
-        renderFallback(categories[0], mode === 'hot' ? "TRENDING SEKARANG" : "REKOMENDASI");
+        renderFallback(categories[0], mode === 'hot' ? "DRAMA TERPOPULER" : "REKOMENDASI");
     }
 }
 
-function filterByTag(tag, categories) {
-    const sections = document.querySelectorAll('.drama-section');
-    sections.forEach(sec => {
-        if (tag === "Semua") sec.style.display = "block";
-        else sec.style.display = sec.dataset.catName.includes(tag.toUpperCase()) ? "block" : "none";
+function filterByTag(tag) {
+    document.querySelectorAll('.drama-section').forEach(sec => {
+        sec.style.display = (tag === "Semua" || sec.dataset.tagName === tag) ? "block" : "none";
     });
 }
 
@@ -114,8 +114,7 @@ function renderFallback(category, label) {
     content.appendChild(section);
 }
 
-/** * 4. HELPER: CARD & EPISODE SYNC (Mencegah ?? EP)
- */
+/** * 4. HELPER: CARD & EPISODE SYNC */
 function createDramaCard(item, isHist = false) {
     const id = item.shortPlayId || item.id, title = item.shortPlayName || item.title || item.bookName;
     const cover = item.cover || item.shortPlayCover || item.groupShortPlayCover;
@@ -135,9 +134,7 @@ function createDramaCard(item, isHist = false) {
         <h3 class="text-[9px] font-bold line-clamp-2 text-gray-500 uppercase leading-tight tracking-tighter">${title}</h3>
     `;
 
-    if (!isHist && (totalEp === "??" || totalEp === 0)) {
-        fetchTotalEpisode(id, div.querySelector('.ep-badge'));
-    }
+    if (!isHist && (totalEp === "??" || totalEp === 0)) fetchTotalEpisode(id, div.querySelector('.ep-badge'));
     return div;
 }
 
@@ -148,8 +145,7 @@ async function fetchTotalEpisode(id, element) {
     } catch (e) {}
 }
 
-/** * 5. MODAL PLAYER & SINKRONISASI DATA (shotIntroduce & totalEpisode)
- */
+/** * 5. MODAL PLAYER & SINKRONISASI DATA */
 async function openDetail(id, title, cover, startEp = 1) {
     const modal = document.getElementById('detailModal');
     player.pause(); player.src = "";
@@ -178,10 +174,7 @@ async function openDetail(id, title, cover, startEp = 1) {
         epList.appendChild(btn);
     });
 
-    if (epData.length > 0) {
-        const playIdx = (startEp <= epData.length ? startEp - 1 : 0);
-        playEpisode(playIdx);
-    }
+    if (epData.length > 0) playEpisode((startEp <= epData.length ? startEp - 1 : 0));
 }
 
 function playEpisode(index) {
@@ -191,7 +184,6 @@ function playEpisode(index) {
     player.play();
     if (playIcon) playIcon.className = "fa-solid fa-pause ml-0";
 
-    // Tanda episode aktif & Auto-scroll
     document.querySelectorAll('.ep-btn-item').forEach(b => {
         b.classList.remove('ep-active');
         b.querySelector('.ep-label').style.color = "#94a3b8";
@@ -203,21 +195,15 @@ function playEpisode(index) {
         activeBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
-    // Simpan History & Limit 6
     const item = { ...currentDramaInfo, lastEp: index + 1, time: Date.now() };
     history = [item, ...history.filter(h => h.id !== item.id)].slice(0, 6);
     localStorage.setItem('dramaxin_history', JSON.stringify(history));
 }
 
-/** * 6. LIBRARY & UTILS 
- */
+/** * 6. LIBRARY & UTILS */
 function loadLibrary() {
     const content = document.getElementById('appContent');
-    content.innerHTML = `
-        <div class="space-y-10">
-            <section><h2 class="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">Terakhir Ditonton (Maks 6)</h2><div id="hGrid" class="grid grid-cols-3 gap-3"></div></section>
-            <section><h2 class="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">Bookmark</h2><div id="bGrid" class="grid grid-cols-3 gap-3"></div></section>
-        </div>`;
+    content.innerHTML = `<div class="space-y-10"><section><h2 class="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">Terakhir Ditonton (Maks 6)</h2><div id="hGrid" class="grid grid-cols-3 gap-3"></div></section><section><h2 class="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">Bookmark</h2><div id="bGrid" class="grid grid-cols-3 gap-3"></div></section></div>`;
     history.forEach(item => document.getElementById('hGrid').appendChild(createDramaCard(item, true)));
     bookmarks.forEach(item => document.getElementById('bGrid').appendChild(createDramaCard(item)));
 }
@@ -276,12 +262,9 @@ function closeModal() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') performSearch(e.target.value);
-        });
-    }
+    document.getElementById('searchInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') performSearch(e.target.value);
+    });
     switchView('home', document.querySelector('.nav-item'));
 });
 
