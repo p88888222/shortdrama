@@ -1,5 +1,5 @@
 const API_BASE = "/api-proxy";
-let epData = []; // Menyimpan list episode drama yang sedang dibuka
+let epData = [];
 let currentEpIndex = -1;
 
 async function apiGet(path) {
@@ -14,11 +14,11 @@ async function apiGet(path) {
 async function performSearch(query) {
     if (!query) return;
     const container = document.getElementById('mainContainer');
-    document.getElementById('sectionLabel').innerText = `HASIL CARI: ${query.toUpperCase()}`;
+    document.getElementById('sectionLabel').innerText = `SEARCH: ${query.toUpperCase()}`;
     container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse">MENCARI...</div>';
     
     const res = await apiGet(`/netshort/search?query=${encodeURIComponent(query)}`);
-    // Menangani struktur searchCodeSearchResult dari API Search
+    // Struktur search dari respon API user
     const items = res?.searchCodeSearchResult || res;
     renderGrid(items, 'search');
 }
@@ -40,19 +40,21 @@ function renderGrid(dataObj, type) {
     const label = document.getElementById('sectionLabel');
     if (type !== 'search') label.innerText = dataObj?.contentName || type.toUpperCase();
 
+    // Deteksi struktur array (search, theaters, foryou)
     let items = [];
     if (dataObj?.contentInfos) items = dataObj.contentInfos;
     else if (Array.isArray(dataObj)) items = dataObj[0]?.contentInfos ? dataObj.flatMap(g => g.contentInfos || []) : dataObj;
     else if (dataObj?.searchCodeSearchResult) items = dataObj.searchCodeSearchResult;
 
-    container.innerHTML = items.length ? "" : '<p class="col-span-full text-center py-20 opacity-50 text-xs">Tidak ditemukan.</p>';
+    container.innerHTML = items.length ? "" : '<p class="col-span-full text-center py-20 opacity-50 text-xs">Kosong</p>';
     
     items.forEach(item => {
         const id = item.shortPlayId || item.id;
         const title = item.shortPlayName || item.title;
-        // AMBIL DATA DARI CONTOH RESPONS: shotIntroduce & totalEpisode
-        const totalEp = item.totalEpisode || item.episodeNum || "0";
-        const desc = item.shotIntroduce || item.shortIntroduce || "";
+        
+        // FIX: Mapping Property dari respon API user
+        const totalEp = item.totalEpisode || item.episodeNum || "??";
+        const desc = item.shotIntroduce || item.shortIntroduce || "Deskripsi tidak tersedia.";
         const tags = Array.isArray(item.shortPlayLabels) ? item.shortPlayLabels.join(" • ") : "";
 
         const rawCover = item.shortPlayCover || item.groupShortPlayCover || item.cover;
@@ -60,6 +62,7 @@ function renderGrid(dataObj, type) {
 
         const div = document.createElement('div');
         div.className = "cursor-pointer animate-slideUp";
+        // Passing data ke modal
         div.onclick = () => openDetail(id, title, desc, totalEp, tags);
         div.innerHTML = `
             <div class="aspect-[3/4] rounded-xl overflow-hidden bg-slate-800 mb-1 relative border border-white/5 shadow-lg">
@@ -77,7 +80,7 @@ async function openDetail(id, title, desc, totalEp, tags) {
     const modal = document.getElementById('detailModal');
     const player = document.getElementById('mainPlayer');
     
-    // Reset State
+    // Reset video & state
     player.pause(); player.src = ""; player.load();
     epData = []; currentEpIndex = -1;
 
@@ -85,11 +88,14 @@ async function openDetail(id, title, desc, totalEp, tags) {
     document.body.style.overflow = "hidden";
     
     document.getElementById('modalTitle').innerText = title;
-    document.getElementById('modalDesc').innerText = desc || "Deskripsi tidak tersedia.";
+    document.getElementById('modalDesc').innerText = desc; // Di sini shotIntroduce dipasang
     document.getElementById('modalTotalEp').innerText = `${totalEp} TOTAL EPISODE`;
     
+    const labelContainer = document.getElementById('modalLabels');
+    labelContainer.innerHTML = tags;
+    
     const epList = document.getElementById('modalEpisodes');
-    epList.innerHTML = '<p class="text-center py-5 text-xs text-red-600 animate-pulse font-bold">MEMUAT EPISODE...</p>';
+    epList.innerHTML = '<p class="text-center py-5 text-xs text-red-600 animate-pulse font-bold">MENGAMBIL EPISODE...</p>';
 
     const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
     epData = res?.shortPlayEpisodeInfos || [];
@@ -98,40 +104,50 @@ async function openDetail(id, title, desc, totalEp, tags) {
     epData.forEach((ep, i) => {
         const btn = document.createElement('button');
         btn.id = `ep-btn-${i}`;
-        btn.className = "ep-item w-full text-left bg-white/5 p-4 rounded-xl flex items-center justify-between text-xs border border-white/5 mb-1 active:bg-red-600/20";
+        btn.className = "ep-item w-full text-left bg-white/5 p-4 rounded-xl flex items-center justify-between text-xs border border-white/5 mb-1";
         btn.onclick = () => playEpisode(i);
-        btn.innerHTML = `<span>EPISODE ${ep.episodeNo || i+1}</span><i class="fa-solid fa-play text-red-600 opacity-30"></i>`;
+        btn.innerHTML = `<span>EPISODE ${ep.episodeNo || i+1}</span><i class="fa-solid fa-play text-red-600 opacity-20 text-[10px]"></i>`;
         epList.appendChild(btn);
     });
 
-    // Putar episode 1 secara otomatis saat dibuka
     if(epData.length > 0) playEpisode(0);
 }
 
 function playEpisode(index) {
     if (index < 0 || index >= epData.length) return;
-    
     currentEpIndex = index;
     const player = document.getElementById('mainPlayer');
     const ep = epData[index];
     
+    // Gunakan URL video utama
     player.src = ep.playVoucher || ep.videoUrl;
     player.play();
 
-    // Tandai episode yang aktif di list
-    document.querySelectorAll('.ep-item').forEach(el => el.classList.remove('bg-red-600/20', 'border-red-600/50'));
+    // Highlighting
+    document.querySelectorAll('.ep-item').forEach(el => el.classList.remove('bg-red-600/20', 'border-red-600/40'));
     const activeBtn = document.getElementById(`ep-btn-${index}`);
-    if(activeBtn) activeBtn.classList.add('bg-red-600/20', 'border-red-600/50');
+    if(activeBtn) {
+        activeBtn.classList.add('bg-red-600/20', 'border-red-600/40');
+        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 }
 
-// Navigasi Prev/Next
+// Simulasi Kualitas Video
+function changeQuality() {
+    const quality = document.getElementById('qualitySelect').value;
+    const player = document.getElementById('mainPlayer');
+    const currentTime = player.currentTime;
+    
+    // Pada kenyataannya Anda membutuhkan URL berbeda dari API untuk kualitas berbeda
+    // Di sini kita hanya memuat ulang agar terasa seperti berganti kualitas
+    player.load();
+    player.currentTime = currentTime;
+    player.play();
+}
+
 function playSibling(direction) {
     const nextIdx = currentEpIndex + direction;
-    if (nextIdx >= 0 && nextIdx < epData.length) {
-        playEpisode(nextIdx);
-        // Scroll ke tombol episode yang aktif agar terlihat
-        document.getElementById(`ep-btn-${nextIdx}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    if (nextIdx >= 0 && nextIdx < epData.length) playEpisode(nextIdx);
 }
 
 function closeModal() {
@@ -142,9 +158,9 @@ function closeModal() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const searchInput = document.getElementById('searchInput');
-    searchInput.addEventListener('keypress', (e) => {
+    document.getElementById('searchInput').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') performSearch(e.target.value);
     });
     changeTab('foryou');
 });
+
