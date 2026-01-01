@@ -8,6 +8,7 @@ const playIcon = document.getElementById('playIcon');
 const videoControls = document.getElementById('videoControls');
 const seekBar = document.getElementById('seekBar');
 
+// --- API HELPER ---
 async function apiGet(path) {
     try {
         const r = await fetch(`${API_BASE}${path}`);
@@ -15,7 +16,7 @@ async function apiGet(path) {
     } catch (e) { return null; }
 }
 
-// --- PLAYER ENGINE ---
+// --- PLAYER CONTROLS ---
 function showControls() {
     videoControls.classList.remove('opacity-0', 'pointer-events-none');
     videoControls.classList.add('opacity-100', 'pointer-events-auto');
@@ -50,7 +51,6 @@ if (player) {
         document.getElementById('curTime').innerText = formatTime(player.currentTime);
         document.getElementById('durTime').innerText = formatTime(player.duration);
     };
-    player.onended = () => playSibling(1);
 }
 
 if (seekBar) seekBar.oninput = () => { player.currentTime = (seekBar.value / 100) * player.duration; };
@@ -66,12 +66,12 @@ function playSibling(dir) {
     if (n >= 0 && n < epData.length) playEp(n);
 }
 
-// --- RENDER & AUTO-SYNC ---
+// --- RENDER & BACKGROUND SYNC ---
 async function switchView(mode, el) {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('nav-active'));
     if (el) el.classList.add('nav-active');
     const content = document.getElementById('appContent');
-    content.innerHTML = '<div class="py-20 text-center animate-pulse text-red-600 font-bold text-xs">SINKRONISASI...</div>';
+    content.innerHTML = '<div class="py-20 text-center animate-pulse text-red-600 font-bold text-xs uppercase">Loading...</div>';
     if (mode === 'library') return loadLibrary();
     const data = await apiGet((mode === 'foryou') ? '/netshort/foryou' : '/netshort/theaters');
     renderContent(data, mode);
@@ -93,7 +93,8 @@ function renderContent(data, mode) {
             }
         }
     });
-    startBackgroundSync();
+    // Menjalankan Auto-Sync secara terpisah di latar belakang
+    setTimeout(startBackgroundSync, 1000);
 }
 
 function createDramaCard(item, isHist = false) {
@@ -102,27 +103,33 @@ function createDramaCard(item, isHist = false) {
     const cover = item.cover || item.shortPlayCover;
     const finalCover = cover?.startsWith('http') ? cover : `https://api.sansekai.my.id${cover?.startsWith('/') ? '' : '/'}${cover}`;
     const totalEp = item.totalEpisode || item.episodeNum || 0;
+    
     const div = document.createElement('div');
     div.className = "drama-card";
     div.onclick = () => openDetail(id, title, finalCover, isHist ? item.lastEp : 1);
-    div.innerHTML = `<div class="card-img-container aspect-[3/4.2]"><img src="${finalCover}" class="w-full h-full object-cover" loading="lazy">
-        <div class="card-badge glass-dark"><span class="sync-ep" data-id="${id}">${isHist ? 'EP '+item.lastEp : (totalEp > 0 ? totalEp+' EP' : '?? EP')}</span></div>
-        </div><h3 class="mt-3 text-[10px] font-bold text-gray-400 line-clamp-2 leading-tight uppercase">${title}</h3>`;
+    div.innerHTML = `
+        <div class="card-img-container aspect-[3/4.2]">
+            <img src="${finalCover}" class="w-full h-full object-cover" loading="lazy">
+            <div class="card-badge glass-dark">
+                <span class="sync-ep-text" data-id="${id}">${isHist ? 'EP '+item.lastEp : (totalEp > 0 ? totalEp+' EP' : '?? EP')}</span>
+            </div>
+        </div>
+        <h3 class="mt-3 text-[10px] font-bold text-gray-400 line-clamp-2 leading-tight uppercase">${title}</h3>`;
     return div;
 }
 
 async function startBackgroundSync() {
-    const elms = document.querySelectorAll('.sync-ep');
+    const elms = document.querySelectorAll('.sync-ep-text');
     for (let el of elms) {
         if (el.innerText.includes('??')) {
-            await new Promise(r => setTimeout(r, 400));
+            await new Promise(r => setTimeout(r, 400)); // Jeda agar tidak membebani API
             const res = await apiGet(`/netshort/allepisode?shortPlayId=${el.dataset.id}`);
             if (res && res.totalEpisode) el.innerText = res.totalEpisode + " EP";
         }
     }
 }
 
-// --- DETAIL & PLAYER ---
+// --- DETAIL MODAL & PLAYER ---
 async function openDetail(id, title, cover, startEp = 1) {
     const modal = document.getElementById('detailModal');
     if (player) { player.pause(); player.src = ""; }
@@ -130,13 +137,21 @@ async function openDetail(id, title, cover, startEp = 1) {
     document.body.style.overflow = "hidden";
     showControls();
     document.getElementById('modalTitle').innerText = title;
-    document.getElementById('modalDesc').innerText = "Memuat...";
+    document.getElementById('modalDesc').innerText = "Memuat deskripsi...";
+    
+    // Ambil data detail lengkap untuk modal
     const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
     epData = res?.shortPlayEpisodeInfos || [];
-    activeDrama = { id, title, cover, intro: res?.shotIntroduce || "Deskripsi tidak tersedia.", total: res?.totalEpisode || epData.length || 0 };
+    activeDrama = { 
+        id, title, cover, 
+        intro: res?.shotIntroduce || "Deskripsi tidak tersedia.", 
+        total: res?.totalEpisode || epData.length || 0 
+    };
+
     document.getElementById('modalDesc').innerText = activeDrama.intro;
     document.getElementById('modalTotalEp').innerText = `${activeDrama.total} EPISODES`;
     updateBookmarkUI();
+
     const epList = document.getElementById('modalEpisodes');
     epList.innerHTML = "";
     epData.forEach((ep, i) => {
@@ -147,60 +162,36 @@ async function openDetail(id, title, cover, startEp = 1) {
         btn.innerHTML = `<span class="font-bold">EPISODE ${ep.episodeNo || i+1}</span><i class="fa-solid fa-play text-red-500 text-[10px]"></i>`;
         epList.appendChild(btn);
     });
+
     if (epData.length > 0) playEp(startEp - 1);
 }
 
 function playEp(idx) {
-    if (!epData || !epData[idx]) return;
+    if (!epData[idx]) return;
     currentEpIndex = idx;
     const ep = epData[idx];
 
-    // 1. Bersihkan track subtitle lama agar tidak bentrok dengan teks bawaan video
-    const oldTracks = player.querySelectorAll('track');
-    oldTracks.forEach(t => t.remove());
+    // Menghapus track manual untuk menampilkan teks bahasa bawaan playVoucher
+    const tracks = player.querySelectorAll('track');
+    tracks.forEach(t => t.remove());
 
-    // 2. Gunakan playVoucher sebagai prioritas karena Anda mengonfirmasi ada teksnya di sana
-    const videoUrl = ep.playVoucher || ep.videoUrl;
-    player.src = videoUrl;
-
-    // 3. Muat softsub HANYA JIKA tersedia dan videoUrl bukan tipe yang sudah ada teksnya
-    // Namun agar aman, kita tetap muat jika ada, tapi biarkan 'default' tetap true
-    if (ep.subtitleUrl || ep.m3u8SubtitleUrl) {
-        const t = document.createElement('track');
-        t.kind = "subtitles";
-        t.label = "Indonesia";
-        t.srclang = "id";
-        t.src = ep.subtitleUrl || ep.m3u8SubtitleUrl;
-        t.default = false; 
-        player.appendChild(t);
-    }
-
-    // 4. Reset UI & Play
+    // Menggunakan link playVoucher sebagai prioritas utama
+    player.src = ep.playVoucher || ep.videoUrl;
+    
     player.load();
-    player.play().then(() => {
-        if (playIcon) playIcon.className = "fa-solid fa-pause";
-    }).catch(e => console.warn("Autoplay blocked or URL error"));
+    player.play().catch(e => console.warn("Autoplay ditunda"));
+    playIcon.className = "fa-solid fa-pause";
 
-    // Highlight tombol episode
     document.querySelectorAll('.ep-btn').forEach(b => b.classList.remove('ep-active'));
-    const activeBtn = document.getElementById(`ep-btn-${idx}`);
-    if (activeBtn) {
-        activeBtn.classList.add('ep-active');
-        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    document.getElementById(`ep-btn-${idx}`)?.classList.add('ep-active');
 
-    // 5. Simpan History (Tetap maksimal 6)
+    // Menyimpan Riwayat (Maksimal 6 drama)
     if (activeDrama) {
-        const histItem = { 
-            ...activeDrama, 
-            lastEp: idx + 1,
-            time: Date.now() 
-        };
+        const histItem = { ...activeDrama, lastEp: idx + 1 };
         history = [histItem, ...history.filter(h => h.id !== activeDrama.id)].slice(0, 6);
         localStorage.setItem('dramaxin_history', JSON.stringify(history));
     }
 }
-
 
 function updateBookmarkUI() {
     const isBook = bookmarks.find(b => b.id === activeDrama.id);
@@ -226,10 +217,10 @@ function loadLibrary() {
 
 async function performSearch(q) {
     const content = document.getElementById('appContent');
-    content.innerHTML = '<div class="py-20 text-center text-red-600 font-bold">SEARCHING...</div>';
+    content.innerHTML = '<div class="py-20 text-center text-red-600 font-bold uppercase">Searching...</div>';
     const data = await apiGet(`/netshort/search?query=${encodeURIComponent(q)}`);
     const items = data?.searchCodeSearchResult || [];
-    content.innerHTML = `<h2 class="text-xs font-black text-gray-500 mb-6 uppercase">Results: ${q}</h2><div id="sG" class="grid grid-cols-3 gap-4"></div>`;
+    content.innerHTML = `<h2 class="text-xs font-black text-gray-400 mb-6 uppercase tracking-widest">Results: ${q}</h2><div id="sG" class="grid grid-cols-3 gap-4"></div>`;
     items.forEach(i => document.getElementById('sG').appendChild(createDramaCard(i)));
 }
 
@@ -239,3 +230,4 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('searchInput').onkeypress = (e) => { if(e.key === 'Enter') performSearch(e.target.value); };
     switchView('home', document.querySelector('.nav-item'));
 });
+
