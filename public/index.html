@@ -7,11 +7,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        body { background-color: #0b0d12; color: #f8fafc; font-family: sans-serif; }
+        body { background-color: #0b0d12; color: #f8fafc; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
         .nav-active { color: #ef4444 !important; }
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
         .ep-active { background-color: rgba(239, 68, 68, 0.2) !important; border: 1px solid #ef4444 !important; color: #ef4444 !important; }
         ::-webkit-scrollbar { display: none; }
+        
+        /* Video Controls Styling */
+        .video-overlay { background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.7) 100%); }
     </style>
 </head>
 <body class="pb-24">
@@ -26,7 +29,7 @@
 
     <main id="appContent" class="p-4 space-y-8 min-h-screen"></main>
 
-    <nav class="fixed bottom-0 left-0 right-0 z-50 bg-[#0b0d12]/95 border-t border-white/5 px-6 py-3 flex justify-between items-center shadow-2xl">
+    <nav class="fixed bottom-0 left-0 right-0 z-50 bg-[#0b0d12]/95 border-t border-white/5 px-6 py-3 flex justify-between items-center">
         <button onclick="switchView('home', this)" class="nav-item nav-active flex flex-col items-center gap-1 text-gray-500">
             <i class="fa-solid fa-house text-lg"></i><span class="text-[9px] font-bold uppercase">Home</span>
         </button>
@@ -42,17 +45,33 @@
     </nav>
 
     <div id="detailModal" class="fixed inset-0 z-[60] bg-[#0b0d12] hidden flex flex-col overflow-hidden">
-        <div class="p-4 flex justify-between items-center fixed top-0 w-full z-30">
-            <button onclick="closeModal()" class="w-10 h-10 glass rounded-full flex items-center justify-center text-white"><i class="fa-solid fa-chevron-left"></i></button>
-            <div id="modalAction"></div>
-        </div>
         <div class="flex-1 overflow-y-auto">
-            <video id="mainPlayer" class="w-full aspect-video bg-black sticky top-0 z-20" controls playsinline></video>
+            <div id="videoContainer" class="w-full bg-black aspect-video relative sticky top-0 z-20 group">
+                <video id="mainPlayer" class="w-full h-full object-contain" playsinline></video>
+                
+                <div class="video-overlay absolute inset-0 flex flex-col justify-between p-4 opacity-100 transition-opacity">
+                    <div class="flex justify-between items-center">
+                        <button onclick="closeModal()" class="w-10 h-10 glass rounded-full flex items-center justify-center text-white"><i class="fa-solid fa-chevron-left"></i></button>
+                        <div id="modalAction"></div>
+                    </div>
+                    
+                    <div class="flex items-center justify-center gap-10">
+                        <button onclick="playSibling(-1)" class="text-white text-2xl drop-shadow-lg"><i class="fa-solid fa-backward-step"></i></button>
+                        <button onclick="togglePlay()" class="w-16 h-16 glass rounded-full flex items-center justify-center text-white text-3xl"><i id="playIcon" class="fa-solid fa-play ml-1"></i></button>
+                        <button onclick="playSibling(1)" class="text-white text-2xl drop-shadow-lg"><i class="fa-solid fa-forward-step"></i></button>
+                    </div>
+
+                    <div class="flex justify-end items-center">
+                        <button onclick="toggleFullscreen()" class="w-10 h-10 glass rounded-lg flex items-center justify-center text-white"><i class="fa-solid fa-expand"></i></button>
+                    </div>
+                </div>
+            </div>
+
             <div class="p-6">
                 <h2 id="modalTitle" class="text-xl font-bold mb-1"></h2>
-                <div id="modalTotalEp" class="text-red-500 text-[10px] font-bold mb-4 uppercase"></div>
-                <div class="glass p-4 rounded-2xl mb-6"><p id="modalDesc" class="text-gray-400 text-xs italic"></p></div>
-                <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-4">Daftar Episode</h3>
+                <div id="modalTotalEp" class="text-red-500 text-[10px] font-bold mb-4 uppercase tracking-widest"></div>
+                <div class="glass p-4 rounded-2xl mb-6"><p id="modalDesc" class="text-gray-400 text-xs italic leading-relaxed"></p></div>
+                <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-4 tracking-[0.2em]">Daftar Episode</h3>
                 <div id="modalEpisodes" class="space-y-2 pb-32"></div>
             </div>
         </div>
