@@ -6,6 +6,7 @@ async function apiGet(path) {
     try {
         const res = await fetch(`${API_BASE}${path}`);
         const json = await res.json();
+        // Mengambil data utama dari properti 'data' atau objek itu sendiri
         return json.data || json;
     } catch (e) { return null; }
 }
@@ -13,11 +14,14 @@ async function apiGet(path) {
 async function performSearch(query) {
     if (!query) return;
     const container = document.getElementById('mainContainer');
-    document.getElementById('sectionLabel').innerText = `HASIL CARI: ${query.toUpperCase()}`;
+    const label = document.getElementById('sectionLabel');
+    
+    // Menampilkan indikator pencarian
+    label.innerText = `HASIL CARI: ${query.toUpperCase()}`;
     container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse font-bold uppercase">Mencari Data...</div>';
     
     const res = await apiGet(`/netshort/search?query=${encodeURIComponent(query)}`);
-    // Sinkronisasi struktur searchCodeSearchResult
+    // Mengambil item dari searchCodeSearchResult jika tersedia
     const items = res?.searchCodeSearchResult || (Array.isArray(res) ? res : []);
     renderGrid(items, 'search');
 }
@@ -29,34 +33,48 @@ async function changeTab(type, el) {
     }
     const container = document.getElementById('mainContainer');
     container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse font-bold uppercase tracking-widest">Sinkronisasi...</div>';
+    
     const path = (type === 'foryou') ? '/netshort/foryou' : '/netshort/theaters';
     const data = await apiGet(path);
     renderGrid(data, type);
 }
 
+/**
+ * RENDER GRID
+ * Menampilkan contentName sebagai label kategori
+ */
 function renderGrid(dataObj, type) {
     const container = document.getElementById('mainContainer');
     const label = document.getElementById('sectionLabel');
-    if (type !== 'search') label.innerText = dataObj?.contentName || type.toUpperCase();
+
+    // MENGGUNAKAN contentName DARI API SEBAGAI JUDUL
+    // Jika contentName tidak ada, gunakan nama Tab sebagai cadangan
+    const categoryTitle = dataObj?.contentName || (Array.isArray(dataObj) ? dataObj[0]?.contentName : null) || type.toUpperCase();
+    label.innerText = categoryTitle;
 
     let items = [];
-    if (dataObj?.contentInfos) items = dataObj.contentInfos;
-    else if (Array.isArray(dataObj)) items = dataObj[0]?.contentInfos ? dataObj.flatMap(g => g.contentInfos || []) : dataObj;
+    // Deteksi struktur data untuk For You dan Theaters
+    if (dataObj?.contentInfos) {
+        items = dataObj.contentInfos;
+    } else if (Array.isArray(dataObj)) {
+        items = dataObj[0]?.contentInfos ? dataObj.flatMap(g => g.contentInfos || []) : dataObj;
+    }
 
     container.innerHTML = items.length ? "" : '<p class="col-span-full text-center py-20 opacity-50 text-xs">Data Tidak Ditemukan</p>';
     
     items.forEach(item => {
-        // --- SINKRONISASI DATA API (shotIntroduce & totalEpisode) ---
+        // Sinkronisasi properti data drama
         const spId = item.shortPlayId || item.id;
         const spName = item.shortPlayName || item.title || "No Title";
         const spIntro = item.shotIntroduce || item.shortIntroduce || "Deskripsi tidak tersedia.";
         const spTotal = item.totalEpisode || item.episodeNum || "0";
-        const cName = item.contentName || item.content || " ";
+
         const rawCover = item.shortPlayCover || item.groupShortPlayCover || item.cover;
         const finalCover = rawCover?.startsWith('http') ? rawCover : `https://api.sansekai.my.id${rawCover?.startsWith('/') ? '' : '/'}${rawCover}`;
+
         const div = document.createElement('div');
         div.className = "cursor-pointer animate-slideUp";
-        div.onclick = () => openDetail(spId, spName, cName, spIntro, spTotal);
+        div.onclick = () => openDetail(spId, spName, spIntro, spTotal);
         div.innerHTML = `
             <div class="aspect-[3/4] rounded-xl overflow-hidden bg-slate-800 mb-1 relative border border-white/5 shadow-lg active:scale-95 transition">
                 <img src="${finalCover}" class="w-full h-full object-cover" loading="lazy">
@@ -73,6 +91,7 @@ async function openDetail(id, title, intro, total) {
     const modal = document.getElementById('detailModal');
     const player = document.getElementById('mainPlayer');
     
+    // Reset player agar tidak memutar drama sebelumnya
     player.pause(); player.src = ""; player.load();
     epData = []; currentEpIndex = -1;
 
@@ -80,12 +99,13 @@ async function openDetail(id, title, intro, total) {
     document.body.style.overflow = "hidden";
     
     document.getElementById('modalTitle').innerText = title;
-    document.getElementById('modalDesc').innerText = intro; // Sinkronisasi shotIntroduce
-    document.getElementById('modalTotalEp').innerText = `${total} TOTAL EPISODE`; // Sinkronisasi totalEpisode
+    document.getElementById('modalDesc').innerText = intro; 
+    document.getElementById('modalTotalEp').innerText = `${total} TOTAL EPISODE`; 
     
     const epList = document.getElementById('modalEpisodes');
     epList.innerHTML = '<p class="text-center py-5 text-xs text-red-600 animate-pulse font-bold">LOADING EPISODE...</p>';
 
+    // Mengambil daftar episode berdasarkan shortPlayId
     const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
     epData = res?.shortPlayEpisodeInfos || [];
     
@@ -110,7 +130,7 @@ function playEpisode(index) {
     
     player.src = epData[index].playVoucher || epData[index].videoUrl;
     player.play();
-    playIcon.className = "fa-solid fa-pause";
+    if(playIcon) playIcon.className = "fa-solid fa-pause";
 
     document.querySelectorAll('.ep-item').forEach(el => el.classList.remove('bg-red-600/20', 'border-red-600/40'));
     const activeBtn = document.getElementById(`ep-btn-${index}`);
@@ -124,8 +144,8 @@ function playEpisode(index) {
 function togglePlay() {
     const player = document.getElementById('mainPlayer');
     const playIcon = document.getElementById('playIcon');
-    if (player.paused) { player.play(); playIcon.className = "fa-solid fa-pause"; }
-    else { player.pause(); playIcon.className = "fa-solid fa-play"; }
+    if (player.paused) { player.play(); if(playIcon) playIcon.className = "fa-solid fa-pause"; }
+    else { player.pause(); if(playIcon) playIcon.className = "fa-solid fa-play"; }
 }
 
 function changeVolume(val) { document.getElementById('mainPlayer').volume = val; }
@@ -154,9 +174,12 @@ function closeModal() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('searchInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') performSearch(e.target.value);
-    });
+    const searchInput = document.getElementById('searchInput');
+    if(searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch(e.target.value);
+        });
+    }
     changeTab('foryou');
 });
 
