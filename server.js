@@ -6,10 +6,9 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// PROXY API: Menghindari CORS Error
 app.get('/api-proxy/**', async (req, res) => {
     try {
-        const targetPath = req.params[0]; // mengambil bagian setelah /api-proxy/
+        const targetPath = req.params[0];
         const queryParams = new URLSearchParams(req.query).toString();
         const targetUrl = `https://api.sansekai.my.id/api/${targetPath}${queryParams ? '?' + queryParams : ''}`;
         
@@ -18,7 +17,7 @@ app.get('/api-proxy/**', async (req, res) => {
         });
         res.json(response.data);
     } catch (error) {
-        res.status(500).json({ error: "Gagal mengambil data dari API" });
+        res.status(500).json({ error: "API Failure" });
     }
 });
 
@@ -26,6 +25,5 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-    console.log(`Server aktif di port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
