@@ -125,7 +125,7 @@ async function openDetail(id, title, desc) {
     document.getElementById('modalDesc').innerText = desc || "Deskripsi tidak tersedia.";
     
     // Pastikan pengambilan episode juga universal
-    const res = await apiGet(`/netshort/allepisode?bookId=${id}`);
+    const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
     epData = res?.rows || res?.data || (Array.isArray(res) ? res : []);
     
     const epList = document.getElementById('modalEpisodes');
