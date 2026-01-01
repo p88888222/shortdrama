@@ -10,8 +10,6 @@ async function apiGet(path) {
         const res = await fetch(`${API_BASE}${path}`);
         if (!res.ok) throw new Error("API Error");
         const json = await res.json();
-        
-        // Mengambil objek data utama (biasanya json.data)
         return json.data || json; 
     } catch (e) {
         console.error("Fetch Error:", e);
@@ -38,41 +36,26 @@ async function changeTab(type, el) {
     label.innerText = `MEMUAT ${type.toUpperCase()}...`;
     container.innerHTML = '<div class="col-span-full py-20 text-center text-xs animate-pulse text-red-600 font-bold uppercase">Menghubungkan Database...</div>';
 
-    // Endpoint tujuan
     let path = (type === 'foryou') ? '/netshort/foryou' : '/netshort/theaters';
-    
     const response = await apiGet(path);
-    
-    // Kirim response ke fungsi render
     renderGrid(response, type);
 }
 
 /**
- * 3. RENDER GRID (Identik untuk For You & Theaters)
+ * 3. RENDER GRID DENGAN JUMLAH EPISODE
  */
-function renderGrid(dataObj, type) {
+async function renderGrid(dataObj, type) {
     const container = document.getElementById('mainContainer');
     const label = document.getElementById('sectionLabel');
 
-    // MENGAMBIL JUDUL: Prioritas contentName dari API
-    // Jika API memberikan data dalam array (Theaters seringkali begitu), 
-    // kita cek apakah item pertama punya contentName atau gunakan fallback.
     const labelName = dataObj?.contentName || (Array.isArray(dataObj) ? dataObj[0]?.contentName : null) || type.toUpperCase();
     label.innerText = labelName;
 
-    // MENGAMBIL DAFTAR ITEM: Mencari Array secara agresif di contentInfos atau data utama
     let items = [];
     if (dataObj?.contentInfos && Array.isArray(dataObj.contentInfos)) {
         items = dataObj.contentInfos;
     } else if (Array.isArray(dataObj)) {
-        // Jika dataObj adalah array yang berisi objek dengan contentInfos (struktur list of groups)
-        if (dataObj[0]?.contentInfos) {
-            items = dataObj.flatMap(group => group.contentInfos || []);
-        } else {
-            items = dataObj;
-        }
-    } else if (dataObj?.data && Array.isArray(dataObj.data)) {
-        items = dataObj.data;
+        items = dataObj[0]?.contentInfos ? dataObj.flatMap(group => group.contentInfos || []) : dataObj;
     }
 
     if (!items || items.length === 0) {
@@ -81,41 +64,37 @@ function renderGrid(dataObj, type) {
     }
 
     container.innerHTML = "";
+    
+    // Gunakan for...of agar bisa menggunakan await di dalam loop jika ingin fetch jumlah episode real-time
+    // Namun untuk efisiensi, kita tampilkan placeholder atau label "Full" jika data jumlah episode tidak ada di objek utama
     items.forEach(item => {
         const id = item.shortPlayId || item.bookId || item.id;
-        const title = item.shortPlayName || item.bookName || item.title || item.name;
+        const title = item.shortPlayName || item.bookName || item.title;
         
-        // Logika Cover (Prioritas shortPlayCover sesuai temuan Anda)
-        let rawCover = item.shortPlayCover || item.groupShortPlayCover || item.horizontalCover || item.coverWap || item.cover;
-        let finalCover = "";
+        // Deskripsi menggunakan shortIntroduce sesuai permintaan
+        const desc = item.shortIntroduce || item.shortPlayLabels || item.introduction || "";
 
-        if (rawCover) {
-            if (rawCover.startsWith('http')) {
-                finalCover = rawCover;
-            } else {
-                finalCover = `https://api.sansekai.my.id${rawCover.startsWith('/') ? '' : '/'}${rawCover}`;
-            }
-        } else {
-            finalCover = 'https://via.placeholder.com/300x400?text=No+Cover';
-        }
+        // Penanganan Gambar
+        let rawCover = item.shortPlayCover || item.groupShortPlayCover || item.horizontalCover || item.coverWap || item.cover;
+        let finalCover = rawCover ? (rawCover.startsWith('http') ? rawCover : `https://api.sansekai.my.id${rawCover.startsWith('/') ? '' : '/'}${rawCover}`) : 'https://via.placeholder.com/300x400?text=No+Cover';
 
         const div = document.createElement('div');
-        div.className = "cursor-pointer animate-slideUp group";
-        div.onclick = () => openDetail(id, title, item.shortPlayLabels || item.introduction || item.description);
+        div.className = "cursor-pointer animate-slideUp group relative";
+        div.onclick = () => openDetail(id, title, desc);
         div.innerHTML = `
-            <div class="aspect-[3/4] rounded-xl overflow-hidden bg-slate-800 mb-1 border border-white/5 shadow-lg group-active:scale-95 transition">
-                <img src="${finalCover}" class="w-full h-full object-cover" 
-                     onerror="this.src='https://via.placeholder.com/300x400?text=Error+Loading'">
+            <div class="aspect-[3/4] rounded-xl overflow-hidden bg-slate-800 mb-1 border border-white/5 shadow-lg group-active:scale-95 transition relative">
+                <img src="${finalCover}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x400?text=Error'">
+                <div class="absolute bottom-2 right-2 bg-red-600 text-[8px] font-bold px-2 py-1 rounded-md shadow-lg text-white">
+                    EP ${item.episodeNum || item.totalEpisode || '??'}
+                </div>
             </div>
             <h3 class="text-[9px] font-bold line-clamp-2 text-gray-400 px-1 leading-tight uppercase">${title}</h3>`;
         container.appendChild(div);
     });
 }
 
-// Fungsi openDetail, playEp, dan closeModal tetap sama...
-
 /**
- * 4. PLAYER & EPISODE LOGIC (Tetap)
+ * 4. DETAIL & PLAYER (DENGAN ENDPOINT EPISODE BARU)
  */
 async function openDetail(id, title, desc) {
     const modal = document.getElementById('detailModal');
@@ -124,16 +103,28 @@ async function openDetail(id, title, desc) {
     document.getElementById('modalTitle').innerText = title;
     document.getElementById('modalDesc').innerText = desc || "Deskripsi tidak tersedia.";
     
-    // Pastikan pengambilan episode juga universal
+    // Menggunakan endpoint /allepisode dengan parameter shortPlayId
     const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
-    epData = res?.rows || res?.data || (Array.isArray(res) ? res : []);
+    
+    // Menyesuaikan dengan struktur response: shortPlayEpisodeInfos
+    epData = res?.shortPlayEpisodeInfos || res?.data || res || [];
     
     const epList = document.getElementById('modalEpisodes');
     epList.innerHTML = "";
+
+    if (epData.length === 0) {
+        epList.innerHTML = "<p class='text-center text-xs opacity-50 py-10'>Episode tidak ditemukan.</p>";
+    }
+
     epData.forEach((ep, i) => {
         const btn = document.createElement('button');
         btn.className = "w-full text-left bg-white/5 p-4 rounded-xl text-[10px] border border-white/5 flex justify-between items-center mb-1 active:bg-red-600/20";
-        btn.innerHTML = `<span>EPISODE ${i+1}</span> <i class="fa-solid fa-play text-red-600"></i>`;
+        btn.innerHTML = `
+            <div class="flex items-center gap-3">
+                <span class="text-gray-500 font-mono">${String(i + 1).padStart(2, '0')}</span>
+                <span>EPISODE ${ep.episodeNo || i + 1}</span>
+            </div>
+            <i class="fa-solid fa-play text-red-600 text-[8px]"></i>`;
         btn.onclick = () => playEp(i);
         epList.appendChild(btn);
     });
@@ -146,22 +137,13 @@ function playEp(idx) {
     document.getElementById('playerContainer').classList.remove('hidden');
     let ep = epData[idx];
     
-    // Prioritas URL video
-    player.src = ep.videoUrl || ep.url || ep.videoPath;
+    // Mapping URL video dari response baru (biasanya di playVoucher atau videoPath)
+    player.src = ep.playVoucher || ep.videoUrl || ep.url;
     player.load();
     player.play();
 
     document.getElementById('prevBtn').onclick = () => playEp(curIdx - 1);
     document.getElementById('nextBtn').onclick = () => playEp(curIdx + 1);
-    player.onended = () => playEp(curIdx + 1);
+    player.onended = () => { if (curIdx + 1 < epData.length) playEp(curIdx + 1); };
 }
-
-function closeModal() {
-    document.getElementById('detailModal').classList.add('hidden');
-    document.getElementById('mainPlayer').pause();
-    document.body.style.overflow = "auto";
-}
-
-// Inisialisasi Pertama
-document.addEventListener('DOMContentLoaded', () => changeTab('foryou'));
 
