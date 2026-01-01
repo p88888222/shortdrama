@@ -31,7 +31,7 @@ async function changeTab(type, el) {
     container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse font-bold uppercase tracking-widest">Sinkronisasi...</div>';
     const path = (type === 'foryou') ? '/netshort/foryou' : '/netshort/theaters';
     const data = await apiGet(path);
-    renderGrid(dataObj, type);
+    renderGrid(data, type);
 }
 
 function renderGrid(dataObj, type) {
@@ -51,10 +51,8 @@ function renderGrid(dataObj, type) {
         const spName = item.shortPlayName || item.title || "No Title";
         const spIntro = item.shotIntroduce || item.shortIntroduce || "Deskripsi tidak tersedia.";
         const spTotal = item.totalEpisode || item.episodeNum || "0";
-
         const rawCover = item.shortPlayCover || item.groupShortPlayCover || item.cover;
         const finalCover = rawCover?.startsWith('http') ? rawCover : `https://api.sansekai.my.id${rawCover?.startsWith('/') ? '' : '/'}${rawCover}`;
-
         const div = document.createElement('div');
         div.className = "cursor-pointer animate-slideUp";
         div.onclick = () => openDetail(spId, spName, spIntro, spTotal);
