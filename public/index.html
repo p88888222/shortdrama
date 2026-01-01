@@ -12,6 +12,7 @@
         ::-webkit-scrollbar { display: none; }
         .nav-active { color: #ef4444 !important; }
         .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        .ep-active { background-color: rgba(239, 68, 68, 0.2) !important; border-color: rgba(239, 68, 68, 0.5) !important; color: #ef4444 !important; }
         input[type=range] { height: 4px; appearance: none; background: rgba(255,255,255,0.2); border-radius: 5px; }
         input[type=range]::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; background: #ef4444; border-radius: 50%; cursor: pointer; }
     </style>
@@ -64,9 +65,9 @@
                     </div>
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-6 text-white">
-                            <button onclick="playSibling(-1)"><i class="fa-solid fa-backward-step"></i></button>
-                            <button onclick="togglePlay()" class="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center"><i id="playIcon" class="fa-solid fa-play ml-1"></i></button>
-                            <button onclick="playSibling(1)"><i class="fa-solid fa-forward-step"></i></button>
+                            <button onclick="playSibling(-1)"><i class="fa-solid fa-backward-step text-lg"></i></button>
+                            <button onclick="togglePlay()" class="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center"><i id="playIcon" class="fa-solid fa-play ml-1 text-lg"></i></button>
+                            <button onclick="playSibling(1)"><i class="fa-solid fa-forward-step text-lg"></i></button>
                         </div>
                         <div class="flex items-center gap-2 text-white">
                             <i class="fa-solid fa-volume-high text-[10px]"></i>
