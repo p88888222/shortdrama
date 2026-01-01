@@ -51,11 +51,12 @@ function renderGrid(dataObj, type) {
         const spName = item.shortPlayName || item.title || "No Title";
         const spIntro = item.shotIntroduce || item.shortIntroduce || "Deskripsi tidak tersedia.";
         const spTotal = item.totalEpisode || item.episodeNum || "0";
+        const cName = item.contentName || item.content || " ";
         const rawCover = item.shortPlayCover || item.groupShortPlayCover || item.cover;
         const finalCover = rawCover?.startsWith('http') ? rawCover : `https://api.sansekai.my.id${rawCover?.startsWith('/') ? '' : '/'}${rawCover}`;
         const div = document.createElement('div');
         div.className = "cursor-pointer animate-slideUp";
-        div.onclick = () => openDetail(spId, spName, spIntro, spTotal);
+        div.onclick = () => openDetail(spId, spName, cName, spIntro, spTotal);
         div.innerHTML = `
             <div class="aspect-[3/4] rounded-xl overflow-hidden bg-slate-800 mb-1 relative border border-white/5 shadow-lg active:scale-95 transition">
                 <img src="${finalCover}" class="w-full h-full object-cover" loading="lazy">
