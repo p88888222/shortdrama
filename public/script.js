@@ -79,6 +79,19 @@ function createDramaCard(item, isHist = false) {
     `;
     return div;
 }
+async function fetchTotalEpisode(id, element) {
+    try {
+        const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
+        if (res && res.totalEpisode) {
+            element.innerText = `${res.totalEpisode} EP`;
+            
+            // Opsional: Simpan ke cache sementara agar tidak fetch ulang saat scroll
+            // Ini akan membuat aplikasi terasa sangat cepat
+        }
+    } catch (e) {
+        // Jika gagal, biarkan tetap ?? atau ubah jadi -
+    }
+}
 
 async function openDetail(id, title, cover, startEp = 1) {
     const modal = document.getElementById('detailModal');
