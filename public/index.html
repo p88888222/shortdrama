@@ -7,44 +7,44 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background-color: #0b0d12; font-family: sans-serif; }
+        body { background-color: #0b0d12; color: #e2e8f0; font-family: sans-serif; }
         .tab-active { color: #ef4444; border-bottom: 3px solid #ef4444; }
         ::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body class="text-gray-300">
-    <header class="sticky top-0 z-40 bg-[#0b0d12]/95 backdrop-blur-md border-b border-white/5">
-        <div class="p-4 flex items-center justify-between gap-4">
-            <h1 class="text-xl font-black text-red-600 italic">DRAMAXIN</h1>
-            <div class="flex-1 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
-                <i class="fa-solid fa-search text-[10px] text-gray-500"></i>
+<body>
+    <header class="sticky top-0 z-40 bg-[#0b0d12]/90 backdrop-blur-md border-b border-white/5 p-4">
+        <div class="flex items-center justify-between gap-4 mb-4">
+            <h1 class="text-2xl font-black text-red-600 italic tracking-tighter">DRAMAXIN</h1>
+            <div class="flex-1 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-2">
+                <i class="fa-solid fa-magnifying-glass text-gray-500 text-xs"></i>
                 <input id="searchInput" type="text" placeholder="Cari CEO, Pernikahan..." class="bg-transparent border-none outline-none text-xs w-full text-white">
             </div>
         </div>
-        <nav class="flex gap-8 px-6 pb-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
+        <nav class="flex gap-8 px-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
             <button onclick="changeTab('foryou', this)" class="nav-btn tab-active">For You</button>
             <button onclick="changeTab('theaters', this)" class="nav-btn">Theaters</button>
         </nav>
     </header>
 
     <main class="p-4">
-        <h2 id="sectionLabel" class="text-[10px] font-bold text-gray-500 mb-4 tracking-widest uppercase italic">Memuat Konten...</h2>
+        <h2 id="sectionLabel" class="text-[10px] font-black text-gray-500 mb-4 tracking-widest uppercase italic">Memuat...</h2>
         <div id="mainContainer" class="grid grid-cols-3 gap-3"></div>
     </main>
 
     <div id="detailModal" class="fixed inset-0 bg-[#0b0d12] z-50 hidden flex flex-col h-full overflow-hidden">
-        <div class="relative w-full aspect-video bg-black flex items-center justify-center shadow-2xl">
+        <div class="relative w-full aspect-video bg-black flex items-center justify-center">
             <video id="mainPlayer" class="w-full h-full" playsinline controls></video>
-            <button onclick="closeModal()" class="absolute top-4 left-4 p-2 bg-black/40 rounded-full text-white z-50">
+            <button onclick="closeModal()" class="absolute top-4 left-4 p-2 bg-black/40 rounded-full text-white">
                 <i class="fa-solid fa-chevron-left w-5 h-5 flex items-center justify-center"></i>
             </button>
         </div>
         <div class="flex-1 overflow-y-auto px-5 pt-6 pb-24">
-            <h1 id="modalTitle" class="text-lg font-bold text-white mb-2 leading-tight"></h1>
+            <h1 id="modalTitle" class="text-lg font-bold text-white mb-2"></h1>
             <div id="modalLabels" class="flex flex-wrap gap-2 mb-4 text-[8px] font-bold"></div>
             <div class="bg-white/5 p-4 rounded-xl mb-6 border border-white/5">
-                <p id="modalDesc" class="text-xs text-gray-400 leading-relaxed italic"></p>
-                <div class="mt-3 pt-3 border-t border-white/10 flex justify-between">
+                <p id="modalDesc" class="text-xs text-gray-400 leading-relaxed italic mb-3"></p>
+                <div class="border-t border-white/10 pt-3">
                     <span id="modalTotalEp" class="text-[10px] font-bold text-red-500 uppercase"></span>
                 </div>
             </div>
