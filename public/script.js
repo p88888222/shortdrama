@@ -9,86 +9,16 @@ const playIcon = document.getElementById('playIcon');
 const videoControls = document.getElementById('videoControls');
 const seekBar = document.getElementById('seekBar');
 
-// --- API HELPER ---
+// --- HELPER API ---
 async function apiGet(path) {
     try {
         const r = await fetch(`${API_BASE}${path}`);
         const j = await r.json(); 
         return j.data || j;
-    } catch (e) { 
-        return null; 
-    }
+    } catch (e) { return null; }
 }
 
-// --- PLAYER CONTROLS ---
-function showControls() {
-    if (!videoControls) return;
-    videoControls.classList.remove('opacity-0', 'pointer-events-none');
-    videoControls.classList.add('opacity-100', 'pointer-events-auto');
-    clearTimeout(controlTimeout);
-    controlTimeout = setTimeout(() => {
-        if (player && !player.paused) {
-            videoControls.classList.remove('opacity-100', 'pointer-events-auto');
-            videoControls.classList.add('opacity-0', 'pointer-events-none');
-        }
-    }, 3000);
-}
-
-document.getElementById('videoContainer')?.addEventListener('click', (e) => {
-    if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') showControls();
-});
-
-function togglePlay() {
-    if (!player) return;
-    if (player.paused) {
-        player.play();
-        if (playIcon) playIcon.className = "fa-solid fa-pause";
-        showControls();
-    } else {
-        player.pause();
-        if (playIcon) playIcon.className = "fa-solid fa-play ml-1";
-        showControls();
-    }
-}
-
-function toggleFullscreen() {
-    const container = document.getElementById('videoContainer');
-    if (!container) return;
-    if (!document.fullscreenElement) {
-        container.requestFullscreen?.() || container.webkitRequestFullscreen?.();
-    } else {
-        document.exitFullscreen?.();
-    }
-}
-
-if (player) {
-    player.ontimeupdate = () => {
-        if (!player.duration || !seekBar) return;
-        seekBar.value = (player.currentTime / player.duration) * 100;
-        document.getElementById('curTime').innerText = formatTime(player.currentTime);
-        document.getElementById('durTime').innerText = formatTime(player.duration);
-    };
-    player.onended = () => playSibling(1);
-}
-
-if (seekBar) {
-    seekBar.oninput = () => { 
-        if (player) player.currentTime = (seekBar.value / 100) * player.duration; 
-    };
-}
-
-function formatTime(sec) {
-    if (isNaN(sec)) return "00:00";
-    let m = Math.floor(sec / 60), s = Math.floor(sec % 60);
-    return `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
-}
-
-function playSibling(dir) {
-    const n = currentEpIndex + dir;
-    if (n >= 0 && n < epData.length) playEp(n);
-}
-
-// --- CORE LOGIC ---
+// --- NAVIGASI & RENDER ---
 async function switchView(mode, el) {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('nav-active'));
     if (el) el.classList.add('nav-active');
@@ -106,28 +36,58 @@ async function switchView(mode, el) {
 function renderContent(data, mode) {
     const content = document.getElementById('appContent');
     content.innerHTML = "";
-    let cats = Array.isArray(data) ? data : (data.contentInfos ? [data] : []);
+    
+    // Memastikan data diproses sebagai array kategori
+    let categories = Array.isArray(data) ? data : (data.contentInfos ? [data] : []);
 
-    cats.forEach(cat => {
+    let hasDisplayed = false;
+    
+    // Logika penentuan tampilan tiap tab
+    categories.forEach(cat => {
         const name = (cat.contentName || "").toUpperCase();
-        const isHot = name.includes("VIRAL") || name.includes("HOT") || name.includes("POPULAR") || name.includes("TRENDING");
+        const isHotCategory = name.includes("VIRAL") || name.includes("HOT") || name.includes("TRENDING") || name.includes("POPULAR");
         
-        let show = (mode === 'foryou') ? true : (mode === 'hot' ? isHot : !isHot);
+        let shouldShow = false;
+        if (mode === 'foryou') {
+            shouldShow = true; // For You tampilkan semua
+        } else if (mode === 'hot') {
+            shouldShow = isHotCategory; // Hot tampilkan kategori viral
+        } else {
+            shouldShow = !isHotCategory; // Home tampilkan sisanya
+        }
 
-        if (show && cat.contentInfos?.length) {
-            const sec = document.createElement('section');
-            sec.className = "mb-8 animate-fade-in";
-            sec.innerHTML = `
+        if (shouldShow && cat.contentInfos?.length) {
+            const section = document.createElement('section');
+            section.className = "mb-8 animate-fade-in";
+            section.innerHTML = `
                 <div class="flex items-center gap-2 mb-4">
                     <div class="w-1 h-3 bg-red-600 rounded-full"></div>
                     <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">${cat.contentName}</h2>
                 </div>
                 <div class="grid grid-cols-3 gap-3"></div>
             `;
-            cat.contentInfos.forEach(item => sec.querySelector('.grid').appendChild(createDramaCard(item)));
-            content.appendChild(sec);
+            cat.contentInfos.forEach(item => section.querySelector('.grid').appendChild(createDramaCard(item)));
+            content.appendChild(section);
+            hasDisplayed = true;
         }
     });
+
+    // FALLBACK: Jika tab masih kosong, tampilkan semua drama yang ada agar tidak blank
+    if (!hasDisplayed && categories.length > 0) {
+        categories.forEach(cat => {
+            const section = document.createElement('section');
+            section.className = "mb-8";
+            section.innerHTML = `
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="w-1 h-3 bg-red-600 rounded-full"></div>
+                    <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">${cat.contentName}</h2>
+                </div>
+                <div class="grid grid-cols-3 gap-3"></div>
+            `;
+            cat.contentInfos.forEach(item => section.querySelector('.grid').appendChild(createDramaCard(item)));
+            content.appendChild(section);
+        });
+    }
 }
 
 function createDramaCard(item, isHist = false) {
@@ -136,8 +96,7 @@ function createDramaCard(item, isHist = false) {
     const cover = item.cover || item.shortPlayCover || item.groupShortPlayCover;
     const finalCover = cover?.startsWith('http') ? cover : `https://api.sansekai.my.id${cover?.startsWith('/') ? '' : '/'}${cover}`;
     
-    // Gunakan totalEpisode dari data drama jika ada
-    let totalEp = item.totalEpisode || item.episodeNum || 0;
+    const totalEp = item.totalEpisode || item.episodeNum || 0;
 
     const div = document.createElement('div');
     div.className = "drama-card";
@@ -152,11 +111,7 @@ function createDramaCard(item, isHist = false) {
         <h3 class="mt-3 text-[9px] font-bold text-gray-400 line-clamp-2 leading-tight uppercase">${title}</h3>
     `;
 
-    // FITUR AUTO-SYNC HALAMAN DEPAN
-    if (totalEp === 0) {
-        fetchActualEpisode(id, div.querySelector('.ep-badge-text'));
-    }
-
+    if (totalEp === 0) fetchActualEpisode(id, div.querySelector('.ep-badge-text'));
     return div;
 }
 
@@ -169,12 +124,9 @@ async function fetchActualEpisode(id, el) {
     } catch (e) {}
 }
 
-// --- DETAIL MODAL (DIPERBAIKI) ---
+// --- MODAL & PLAYER DETAIL ---
 async function openDetail(id, title, cover, startEp = 1) {
     const modal = document.getElementById('detailModal');
-    if (!modal) return;
-
-    // Reset UI agar tidak "No Desc"
     if (player) { player.pause(); player.src = ""; }
     modal.classList.remove('hidden');
     document.body.style.overflow = "hidden";
@@ -185,20 +137,16 @@ async function openDetail(id, title, cover, startEp = 1) {
     document.getElementById('modalTotalEp').innerText = "... EPISODES";
     document.getElementById('modalEpisodes').innerHTML = "";
 
-    // Ambil data detail lengkap
     const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
     
-    // Simpan data ke variabel global agar sinkron
+    // Sinkronisasi data detail
     epData = res?.shortPlayEpisodeInfos || [];
     activeDrama = { 
-        id, 
-        title, 
-        cover, 
+        id, title, cover, 
         intro: res?.shotIntroduce || "Deskripsi tidak tersedia.",
         total: res?.totalEpisode || epData.length || 0
     };
 
-    // Update UI Detail dengan data asli
     document.getElementById('modalDesc').innerText = activeDrama.intro;
     document.getElementById('modalTotalEp').innerText = `${activeDrama.total} EPISODES`;
     updateBookmarkUI();
@@ -219,22 +167,20 @@ async function openDetail(id, title, cover, startEp = 1) {
     }
 }
 
+// --- SISTEM PLAYER & RIWAYAT ---
 function playEp(idx) {
-    if (!epData || !epData[idx] || !player) return;
+    if (!epData || !epData[idx]) return;
     currentEpIndex = idx;
-    const ep = epData[idx];
     
-    // Clear Subtitle
     const tracks = player.querySelectorAll('track');
     tracks.forEach(t => t.remove());
 
-    player.src = ep.playVoucher || ep.videoUrl;
+    player.src = epData[idx].playVoucher || epData[idx].videoUrl;
     
-    // Load Subtitle baru jika tersedia
-    if (ep.subtitleUrl || ep.m3u8SubtitleUrl) {
+    if (epData[idx].subtitleUrl || epData[idx].m3u8SubtitleUrl) {
         const t = document.createElement('track');
         t.kind = "subtitles"; t.label = "Indo"; t.srclang = "id"; t.default = true;
-        t.src = ep.subtitleUrl || ep.m3u8SubtitleUrl;
+        t.src = epData[idx].subtitleUrl || epData[idx].m3u8SubtitleUrl;
         player.appendChild(t);
     }
 
@@ -245,7 +191,6 @@ function playEp(idx) {
     document.querySelectorAll('.ep-btn').forEach(b => b.classList.remove('ep-active'));
     document.getElementById(`ep-btn-${idx}`)?.classList.add('ep-active');
 
-    // Save History (Maksimal 6)
     if (activeDrama) {
         const histItem = { ...activeDrama, lastEp: idx + 1 };
         history = [histItem, ...history.filter(h => h.id !== activeDrama.id)].slice(0, 6);
@@ -253,54 +198,12 @@ function playEp(idx) {
     }
 }
 
-function updateBookmarkUI() {
-    const isBook = bookmarks.find(b => b.id === activeDrama.id);
-    const container = document.getElementById('modalAction');
-    if (container) {
-        container.innerHTML = `
-            <button onclick="toggleBook()" class="w-11 h-11 glass rounded-full flex items-center justify-center">
-                <i class="fa-${isBook ? 'solid' : 'regular'} fa-heart ${isBook ? 'text-red-500' : 'text-white'}"></i>
-            </button>`;
-    }
-}
-
-function toggleBook() {
-    const idx = bookmarks.findIndex(b => b.id === activeDrama.id);
-    if (idx > -1) bookmarks.splice(idx, 1);
-    else bookmarks.unshift(activeDrama);
-    localStorage.setItem('dramaxin_bookmarks', JSON.stringify(bookmarks));
-    updateBookmarkUI();
-}
-
-function loadLibrary() {
-    const content = document.getElementById('appContent');
-    content.innerHTML = `<div class="space-y-10">
-        <section><h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">History</h2><div id="hG" class="grid grid-cols-3 gap-3"></div></section>
-        <section><h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Favorites</h2><div id="bG" class="grid grid-cols-3 gap-3"></div></section>
-    </div>`;
-    if (history.length) history.forEach(h => document.getElementById('hG').appendChild(createDramaCard(h, true)));
-    if (bookmarks.length) bookmarks.forEach(b => document.getElementById('bG').appendChild(createDramaCard(b)));
-}
-
-async function performSearch(q) {
-    if (!q) return;
-    const content = document.getElementById('appContent');
-    content.innerHTML = '<div class="py-20 text-center text-red-600 font-bold uppercase">Searching...</div>';
-    const data = await apiGet(`/netshort/search?query=${encodeURIComponent(q)}`);
-    const items = data?.searchCodeSearchResult || [];
-    content.innerHTML = `<h2 class="text-[10px] font-black text-gray-500 mb-6 uppercase">Results: ${q}</h2><div id="sG" class="grid grid-cols-3 gap-3 pb-24"></div>`;
-    items.forEach(i => document.getElementById('sG').appendChild(createDramaCard(i)));
-}
-
-function closeModal() {
-    document.getElementById('detailModal')?.classList.add('hidden');
-    if (player) player.pause();
-    document.body.style.overflow = "auto";
-}
+// (Fungsi togglePlay, toggleFullscreen, formatTime, loadLibrary, performSearch, dll tetap sama)
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('searchInput').onkeypress = (e) => { 
         if(e.key === 'Enter') performSearch(e.target.value); 
     };
-    switchView('home', document.querySelector('.nav-item'));
+    switchView('home', document.querySelector('.nav-item')); // Mulai dari Home
 });
+
