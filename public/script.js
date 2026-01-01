@@ -4,7 +4,6 @@ let history = JSON.parse(localStorage.getItem('dramaxin_history') || '[]');
 let bookmarks = JSON.parse(localStorage.getItem('dramaxin_bookmarks') || '[]');
 let currentDramaInfo = null;
 
-// Element Selector
 const player = document.getElementById('mainPlayer'), playIcon = document.getElementById('playIcon');
 const seekBar = document.getElementById('seekBar'), volBar = document.getElementById('volBar');
 
@@ -17,9 +16,8 @@ if (player) {
         document.getElementById('curTime').innerText = formatTime(player.currentTime);
         document.getElementById('durTime').innerText = formatTime(player.duration);
     };
-    player.onended = () => playSibling(1); // Auto-next saat episode selesai
+    player.onended = () => playSibling(1);
 }
-
 if (seekBar) seekBar.oninput = () => player.currentTime = (seekBar.value / 100) * player.duration;
 if (volBar) volBar.oninput = () => player.volume = volBar.value;
 
@@ -29,7 +27,7 @@ function formatTime(sec) {
     return `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
 }
 
-/** * 2. NAVIGASI UTAMA 
+/** * 2. NAVIGASI UTAMA
  */
 async function switchView(mode, el) {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('nav-active'));
@@ -40,29 +38,45 @@ async function switchView(mode, el) {
 
     if (mode === 'library') return loadLibrary();
     
-    // Tab For You pakai /foryou, sisanya pakai /theaters
     const path = (mode === 'foryou') ? '/netshort/foryou' : '/netshort/theaters';
     const data = await apiGet(path);
     renderContent(data, mode);
 }
 
-/** * 3. RENDER KONTEN & FILTER 
+/** * 3. RENDER KONTEN DENGAN FILTER KATEGORI DINAMIS
  */
 function renderContent(data, mode) {
     const content = document.getElementById('appContent');
     content.innerHTML = "";
+    
     let categories = Array.isArray(data) ? data : (data.contentInfos ? [data] : []);
+
+    // Tambahkan Chip Filter di Halaman Home
+    if (mode === 'home') {
+        const filterWrap = document.createElement('div');
+        filterWrap.className = "flex gap-2 overflow-x-auto pb-4 mb-2 no-scrollbar";
+        const tags = ["Semua", "Romance", "CEO", "Action", "Drama", "Comedy"];
+        tags.forEach(tag => {
+            const chip = document.createElement('button');
+            chip.className = "px-4 py-1.5 glass-card rounded-full text-[10px] font-bold whitespace-nowrap text-gray-400 hover:text-white transition";
+            chip.innerText = tag;
+            chip.onclick = () => filterByTag(tag, categories);
+            filterWrap.appendChild(chip);
+        });
+        content.appendChild(filterWrap);
+    }
 
     let hasDisplayed = false;
     categories.forEach(cat => {
         const name = (cat.contentName || "").toUpperCase();
-        const isViral = name.includes("VIRAL") || name.includes("TRENDING") || name.includes("HOT");
+        const isHot = name.includes("VIRAL") || name.includes("TRENDING") || name.includes("HOT") || name.includes("POPULAR");
         
-        let shouldShow = (mode === 'foryou') ? true : (mode === 'hot' ? isViral : !isViral);
+        let shouldShow = (mode === 'foryou') ? true : (mode === 'hot' ? isHot : !isHot);
         
         if (shouldShow && cat.contentInfos?.length) {
             const section = document.createElement('section');
-            section.className = "mb-8";
+            section.className = "mb-8 drama-section";
+            section.dataset.catName = name;
             section.innerHTML = `
                 <div class="flex items-center gap-2 mb-4">
                     <div class="w-1 h-3 bg-red-600 rounded-full"></div>
@@ -70,43 +84,44 @@ function renderContent(data, mode) {
                 </div>
                 <div class="grid grid-cols-3 gap-3"></div>
             `;
-            const grid = section.querySelector('.grid');
-            cat.contentInfos.forEach(item => grid.appendChild(createDramaCard(item)));
+            cat.contentInfos.forEach(item => section.querySelector('.grid').appendChild(createDramaCard(item)));
             content.appendChild(section);
             hasDisplayed = true;
         }
     });
 
-    if (!hasDisplayed) content.innerHTML = '<p class="py-20 text-center text-xs opacity-30 italic">Konten kosong.</p>';
+    if (!hasDisplayed && categories.length > 0) {
+        renderFallback(categories[0], mode === 'hot' ? "TRENDING SEKARANG" : "REKOMENDASI");
+    }
 }
 
-/** * 4. PENCARIAN 
- */
-async function performSearch(query) {
-    if (!query) return;
+function filterByTag(tag, categories) {
+    const sections = document.querySelectorAll('.drama-section');
+    sections.forEach(sec => {
+        if (tag === "Semua") sec.style.display = "block";
+        else sec.style.display = sec.dataset.catName.includes(tag.toUpperCase()) ? "block" : "none";
+    });
+}
+
+function renderFallback(category, label) {
     const content = document.getElementById('appContent');
-    content.innerHTML = '<div class="py-20 text-center animate-pulse text-red-600 font-bold text-xs uppercase">Mencari...</div>';
-    
-    const data = await apiGet(`/netshort/search?query=${encodeURIComponent(query)}`);
-    const items = data?.searchCodeSearchResult || (Array.isArray(data) ? data : []);
-    
-    content.innerHTML = `<div class="flex items-center gap-2 mb-4"><div class="w-1 h-3 bg-red-600 rounded-full"></div><h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">HASIL CARI: ${query.toUpperCase()}</h2></div><div id="searchGrid" class="grid grid-cols-3 gap-3"></div>`;
-    const grid = document.getElementById('searchGrid');
-    
-    if (items.length) items.forEach(item => grid.appendChild(createDramaCard(item)));
-    else content.innerHTML = '<p class="py-20 text-center text-xs opacity-30 italic">Drama tidak ditemukan.</p>';
+    const section = document.createElement('section');
+    section.innerHTML = `
+        <div class="flex items-center gap-2 mb-4"><div class="w-1 h-3 bg-red-600 rounded-full"></div><h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">${label}</h2></div>
+        <div class="grid grid-cols-3 gap-3"></div>
+    `;
+    (category.contentInfos || []).forEach(item => section.querySelector('.grid').appendChild(createDramaCard(item)));
+    content.appendChild(section);
 }
 
-/** * 5. HELPER: DRAMA CARD & AUTO-FETCH EPISODE 
+/** * 4. HELPER: CARD & EPISODE SYNC (Mencegah ?? EP)
  */
 function createDramaCard(item, isHist = false) {
-    const id = item.shortPlayId || item.id;
-    const title = item.shortPlayName || item.title || item.bookName;
+    const id = item.shortPlayId || item.id, title = item.shortPlayName || item.title || item.bookName;
     const cover = item.cover || item.shortPlayCover || item.groupShortPlayCover;
     const finalCover = cover?.startsWith('http') ? cover : `https://api.sansekai.my.id${cover?.startsWith('/') ? '' : '/'}${cover}`;
     
-    // Cek multi-field untuk episode
-    const totalEp = item.totalEpisode || item.episodeNum || item.shortPlayEpisodeNum || "??";
+    const totalEp = item.totalEpisode || item.episodeNum || "??";
     const badgeText = isHist ? `EP ${item.lastEp}` : `${totalEp} EP`;
 
     const div = document.createElement('div');
@@ -117,14 +132,12 @@ function createDramaCard(item, isHist = false) {
             <img src="${finalCover}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x400?text=No+Poster'">
             <div class="ep-badge absolute bottom-1 right-1 bg-red-600 text-[8px] font-black px-1.5 py-0.5 rounded text-white shadow-xl">${badgeText}</div>
         </div>
-        <h3 class="text-[9px] font-bold line-clamp-2 text-gray-400 uppercase leading-tight tracking-tighter">${title}</h3>
+        <h3 class="text-[9px] font-bold line-clamp-2 text-gray-500 uppercase leading-tight tracking-tighter">${title}</h3>
     `;
 
-    // Jika di halaman awal masih ?? EP, tarik data aslinya di background
-    if (!isHist && totalEp === "??") {
+    if (!isHist && (totalEp === "??" || totalEp === 0)) {
         fetchTotalEpisode(id, div.querySelector('.ep-badge'));
     }
-
     return div;
 }
 
@@ -132,10 +145,10 @@ async function fetchTotalEpisode(id, element) {
     try {
         const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
         if (res && res.totalEpisode) element.innerText = `${res.totalEpisode} EP`;
-    } catch (e) { element.innerText = "- EP"; }
+    } catch (e) {}
 }
 
-/** * 6. MODAL PLAYER & SINKRONISASI DETAIL 
+/** * 5. MODAL PLAYER & SINKRONISASI DATA (shotIntroduce & totalEpisode)
  */
 async function openDetail(id, title, cover, startEp = 1) {
     const modal = document.getElementById('detailModal');
@@ -143,13 +156,7 @@ async function openDetail(id, title, cover, startEp = 1) {
     modal.classList.remove('hidden');
     document.getElementById('modalTitle').innerText = title;
     
-    // Loading State
-    document.getElementById('modalDesc').innerText = "Memuat deskripsi...";
-    document.getElementById('modalTotalEp').innerText = "Memuat total...";
-
     const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
-    
-    // Sinkronisasi shotIntroduce & totalEpisode
     const intro = res?.shotIntroduce || "Deskripsi tidak tersedia.";
     const total = res?.totalEpisode || "0";
     epData = res?.shortPlayEpisodeInfos || [];
@@ -184,7 +191,7 @@ function playEpisode(index) {
     player.play();
     if (playIcon) playIcon.className = "fa-solid fa-pause ml-0";
 
-    // Highlight / Tanda Episode Aktif
+    // Tanda episode aktif & Auto-scroll
     document.querySelectorAll('.ep-btn-item').forEach(b => {
         b.classList.remove('ep-active');
         b.querySelector('.ep-label').style.color = "#94a3b8";
@@ -196,24 +203,34 @@ function playEpisode(index) {
         activeBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
-    // Save History (Maksimal 6 & Terlama dihapus)
+    // Simpan History & Limit 6
     const item = { ...currentDramaInfo, lastEp: index + 1, time: Date.now() };
     history = [item, ...history.filter(h => h.id !== item.id)].slice(0, 6);
     localStorage.setItem('dramaxin_history', JSON.stringify(history));
 }
 
-/** * 7. LIBRARY & BOOKMARK 
+/** * 6. LIBRARY & UTILS 
  */
 function loadLibrary() {
     const content = document.getElementById('appContent');
     content.innerHTML = `
         <div class="space-y-10">
             <section><h2 class="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">Terakhir Ditonton (Maks 6)</h2><div id="hGrid" class="grid grid-cols-3 gap-3"></div></section>
-            <section><h2 class="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">Koleksi Bookmark</h2><div id="bGrid" class="grid grid-cols-3 gap-3"></div></section>
+            <section><h2 class="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">Bookmark</h2><div id="bGrid" class="grid grid-cols-3 gap-3"></div></section>
         </div>`;
-    const hGrid = document.getElementById('hGrid'), bGrid = document.getElementById('bGrid');
-    history.forEach(item => hGrid.appendChild(createDramaCard(item, true)));
-    bookmarks.forEach(item => bGrid.appendChild(createDramaCard(item)));
+    history.forEach(item => document.getElementById('hGrid').appendChild(createDramaCard(item, true)));
+    bookmarks.forEach(item => document.getElementById('bGrid').appendChild(createDramaCard(item)));
+}
+
+async function performSearch(query) {
+    if (!query) return;
+    const content = document.getElementById('appContent');
+    content.innerHTML = '<div class="py-20 text-center animate-pulse text-red-600 font-bold text-xs uppercase">Mencari...</div>';
+    const data = await apiGet(`/netshort/search?query=${encodeURIComponent(query)}`);
+    const items = data?.searchCodeSearchResult || (Array.isArray(data) ? data : []);
+    content.innerHTML = `<div class="flex items-center gap-2 mb-4"><div class="w-1 h-3 bg-red-600 rounded-full"></div><h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">HASIL: ${query.toUpperCase()}</h2></div><div id="searchGrid" class="grid grid-cols-3 gap-3"></div>`;
+    if (items.length) items.forEach(item => document.getElementById('searchGrid').appendChild(createDramaCard(item)));
+    else content.innerHTML = '<p class="py-20 text-center text-xs opacity-30 italic">Tidak ditemukan.</p>';
 }
 
 function setupBookmark(id, data) {
@@ -232,8 +249,6 @@ function setupBookmark(id, data) {
     };
 }
 
-/** * 8. CONTROLS & UTILS 
- */
 function togglePlay() {
     if (player.paused) { player.play(); playIcon.className = "fa-solid fa-pause ml-0"; }
     else { player.pause(); playIcon.className = "fa-solid fa-play ml-1"; }
@@ -260,11 +275,13 @@ function closeModal() {
     player.pause(); document.body.style.overflow = "auto";
 }
 
-// Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('searchInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') performSearch(e.target.value);
-    });
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch(e.target.value);
+        });
+    }
     switchView('home', document.querySelector('.nav-item'));
 });
 
