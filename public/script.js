@@ -1,6 +1,5 @@
 const API_BASE = "/api-proxy";
 let epData = [];
-let curIdx = -1;
 
 async function apiGet(path) {
     try {
@@ -10,64 +9,58 @@ async function apiGet(path) {
     } catch (e) { return null; }
 }
 
-// FUNGSI PENCARIAN
-async function performSearch(query) {
-    if (!query) return;
-    const container = document.getElementById('mainContainer');
-    const label = document.getElementById('sectionLabel');
-    
-    label.innerText = `MENCARI: ${query.toUpperCase()}`;
-    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs animate-pulse text-red-600 font-bold">MENCARI DI DATABASE...</div>';
-
-    const response = await apiGet(`/netshort/search?query=${encodeURIComponent(query)}`);
-    renderGrid(response, 'search');
-}
-
 async function changeTab(type, el) {
     if (el) {
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('tab-active', 'text-white'));
-        el.classList.add('tab-active', 'text-white');
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('tab-active'));
+        el.classList.add('tab-active');
     }
     const container = document.getElementById('mainContainer');
-    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs animate-pulse text-red-600">SINKRONISASI DATA...</div>';
-
+    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse">MEMUAT...</div>';
     const path = (type === 'foryou') ? '/netshort/foryou' : '/netshort/theaters';
     const data = await apiGet(path);
     renderGrid(data, type);
 }
 
+// Fitur Pencarian Dinamis
+async function performSearch(query) {
+    if (!query) return;
+    const container = document.getElementById('mainContainer');
+    document.getElementById('sectionLabel').innerText = `HASIL: ${query.toUpperCase()}`;
+    container.innerHTML = '<div class="col-span-full py-20 text-center text-xs text-red-600 animate-pulse">MENCARI...</div>';
+    const data = await apiGet(`/netshort/search?query=${encodeURIComponent(query)}`);
+    renderGrid(data, 'search');
+}
+
 function renderGrid(dataObj, type) {
     const container = document.getElementById('mainContainer');
-    const label = document.getElementById('sectionLabel');
-    
-    if (type !== 'search') label.innerText = dataObj?.contentName || type.toUpperCase();
-    
     let items = dataObj?.contentInfos || (Array.isArray(dataObj) ? dataObj : []);
     if (dataObj?.[0]?.contentInfos) items = dataObj.flatMap(g => g.contentInfos || []);
 
     container.innerHTML = items.length ? "" : '<p class="col-span-full text-center py-20 opacity-50 text-xs">Data Tidak Ditemukan</p>';
     
     items.forEach(item => {
-        const id = item.shortPlayId || item.bookId || item.id;
-        const title = item.shortPlayName || item.bookName || item.title;
-        const totalEp = item.totalEpisode || item.episodeNum || "??";
-        const desc = item.shotIntroduce || item.shortIntroduce || "";
-        const tags = Array.isArray(item.shortPlayLabels) ? item.shortPlayLabels.join(" • ") : "";
+        const id = item.shortPlayId || item.id;
+        const title = item.shortPlayName || item.title;
+        // Mengambil totalEpisode secara dinamis dari API
+        const totalEp = item.totalEpisode || "??";
+        // Mengambil deskripsi dari shotIntroduce
+        const desc = item.shotIntroduce || "";
+        const tags = item.shortPlayLabels || [];
 
-        let rawCover = item.shortPlayCover || item.groupShortPlayCover || item.coverWap || item.cover;
-        let finalCover = rawCover ? (rawCover.startsWith('http') ? rawCover : `https://api.sansekai.my.id${rawCover.startsWith('/') ? '' : '/'}${rawCover}`) : 'https://via.placeholder.com/300x400';
+        let rawCover = item.shortPlayCover || item.cover;
+        let finalCover = rawCover?.startsWith('http') ? rawCover : `https://api.sansekai.my.id${rawCover?.startsWith('/') ? '' : '/'}${rawCover}`;
 
         const div = document.createElement('div');
-        div.className = "cursor-pointer animate-slideUp group";
+        div.className = "cursor-pointer animate-slideUp";
         div.onclick = () => openDetail(id, title, desc, totalEp, tags);
         div.innerHTML = `
-            <div class="aspect-[3/4] rounded-2xl overflow-hidden bg-slate-900 mb-1.5 relative border border-white/5 shadow-lg active:scale-95 transition-all">
+            <div class="aspect-[3/4] rounded-xl overflow-hidden bg-slate-800 mb-1 relative border border-white/5 shadow-lg">
                 <img src="${finalCover}" class="w-full h-full object-cover">
-                <div class="absolute bottom-2 right-2 bg-red-600 text-[8px] font-black px-2 py-1 rounded text-white shadow-xl">
+                <div class="absolute bottom-1 right-1 bg-red-600 text-[8px] font-bold px-1.5 py-0.5 rounded text-white shadow-xl">
                     ${totalEp} EP
                 </div>
             </div>
-            <h3 class="text-[9px] font-bold line-clamp-2 text-gray-500 px-1 leading-tight uppercase">${title}</h3>`;
+            <h3 class="text-[9px] font-bold line-clamp-2 text-gray-400 px-1 uppercase leading-tight">${title}</h3>`;
         container.appendChild(div);
     });
 }
@@ -78,55 +71,29 @@ async function openDetail(id, title, desc, totalEp, tags) {
     document.body.style.overflow = "hidden";
     
     document.getElementById('modalTitle').innerText = title;
-    document.getElementById('modalDesc').innerText = desc || "Tidak ada deskripsi.";
+    document.getElementById('modalDesc').innerText = desc || "Deskripsi tidak tersedia.";
     document.getElementById('modalTotalEp').innerText = `${totalEp} TOTAL EPISODE`;
     
     const labelContainer = document.getElementById('modalLabels');
-    labelContainer.innerHTML = tags.split(' • ').map(t => `<span class="bg-red-600/10 text-red-500 text-[8px] font-bold px-2 py-1 rounded border border-red-500/10">${t}</span>`).join('');
+    labelContainer.innerHTML = tags.map(t => `<span class="bg-red-600/10 text-red-500 text-[8px] font-bold px-2 py-0.5 rounded border border-red-500/10">${t}</span>`).join('');
     
-    document.getElementById('playerContainer').classList.add('hidden');
-    const player = document.getElementById('mainPlayer');
-    player.pause(); player.src = "";
-
     const epList = document.getElementById('modalEpisodes');
-    epList.innerHTML = '<div class="py-10 text-center text-xs animate-pulse text-red-500 font-bold">MENGHUBUNGKAN EPISODE...</div>';
+    epList.innerHTML = '<p class="text-center py-5 text-xs text-red-500 animate-pulse">Memuat Episode...</p>';
 
     const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
-    epData = res?.shortPlayEpisodeInfos || res?.data || [];
+    epData = res?.shortPlayEpisodeInfos || [];
     
     epList.innerHTML = "";
     epData.forEach((ep, i) => {
         const btn = document.createElement('button');
-        btn.id = `ep-btn-${i}`;
-        btn.className = "w-full text-left bg-white/5 p-4 rounded-2xl border border-white/5 flex items-center justify-between mb-1 active:bg-red-600/20 transition-all";
-        btn.onclick = () => playEp(i);
-        btn.innerHTML = `
-            <div class="flex flex-col gap-1">
-                <span class="font-bold text-xs text-gray-200 uppercase">EPISODE ${ep.episodeNo || i+1}</span>
-                <span class="text-[8px] text-gray-500 font-bold uppercase tracking-widest"><i class="fa-solid fa-heart text-red-500 mr-1"></i> ${ep.likeNums || 0} Suka</span>
-            </div>
-            <div class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-red-600 border border-white/5 shadow-inner">
-                <i class="fa-solid fa-play text-[10px] ml-0.5"></i>
-            </div>`;
+        btn.className = "w-full text-left bg-white/5 p-4 rounded-xl flex items-center justify-between text-xs border border-white/5 mb-1";
+        btn.onclick = () => {
+            document.getElementById('mainPlayer').src = ep.playVoucher || ep.videoUrl;
+            document.getElementById('mainPlayer').play();
+        };
+        btn.innerHTML = `<span>EPISODE ${ep.episodeNo || i+1}</span><i class="fa-solid fa-play text-red-600 opacity-50"></i>`;
         epList.appendChild(btn);
     });
-}
-
-function playEp(idx) {
-    if (idx < 0 || idx >= epData.length) return;
-    curIdx = idx;
-    const player = document.getElementById('mainPlayer');
-    document.getElementById('playerContainer').classList.remove('hidden');
-    
-    document.querySelectorAll('[id^="ep-btn-"]').forEach(b => b.classList.remove('border-red-600', 'bg-red-600/5'));
-    document.getElementById(`ep-btn-${idx}`)?.classList.add('border-red-600', 'bg-red-600/5');
-
-    let ep = epData[idx];
-    player.src = ep.playVoucher || ep.videoUrl;
-    player.load(); player.play();
-
-    document.getElementById('prevBtn').onclick = () => playEp(curIdx - 1);
-    document.getElementById('nextBtn').onclick = () => playEp(curIdx + 1);
 }
 
 function closeModal() {
@@ -135,11 +102,9 @@ function closeModal() {
     document.body.style.overflow = "auto";
 }
 
-// Inisialisasi Event Search
-document.addEventListener('DOMContentLoaded', () => {
-    changeTab('foryou');
-    document.getElementById('searchInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') performSearch(e.target.value);
-    });
+document.getElementById('searchInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') performSearch(e.target.value);
 });
+
+changeTab('foryou');
 
