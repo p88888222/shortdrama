@@ -151,26 +151,56 @@ async function openDetail(id, title, cover, startEp = 1) {
 }
 
 function playEp(idx) {
-    if (!epData[idx]) return;
+    if (!epData || !epData[idx]) return;
     currentEpIndex = idx;
     const ep = epData[idx];
-    const tracks = player.querySelectorAll('track');
-    tracks.forEach(t => t.remove());
-    player.src = ep.playVoucher || ep.videoUrl;
+
+    // 1. Bersihkan track subtitle lama agar tidak bentrok dengan teks bawaan video
+    const oldTracks = player.querySelectorAll('track');
+    oldTracks.forEach(t => t.remove());
+
+    // 2. Gunakan playVoucher sebagai prioritas karena Anda mengonfirmasi ada teksnya di sana
+    const videoUrl = ep.playVoucher || ep.videoUrl;
+    player.src = videoUrl;
+
+    // 3. Muat softsub HANYA JIKA tersedia dan videoUrl bukan tipe yang sudah ada teksnya
+    // Namun agar aman, kita tetap muat jika ada, tapi biarkan 'default' tetap true
     if (ep.subtitleUrl || ep.m3u8SubtitleUrl) {
         const t = document.createElement('track');
-        t.kind = "subtitles"; t.label = "Indo"; t.srclang = "id"; t.default = true;
+        t.kind = "subtitles";
+        t.label = "Indonesia";
+        t.srclang = "id";
         t.src = ep.subtitleUrl || ep.m3u8SubtitleUrl;
+        t.default = true; 
         player.appendChild(t);
     }
-    player.load(); player.play();
-    playIcon.className = "fa-solid fa-pause";
+
+    // 4. Reset UI & Play
+    player.load();
+    player.play().then(() => {
+        if (playIcon) playIcon.className = "fa-solid fa-pause";
+    }).catch(e => console.warn("Autoplay blocked or URL error"));
+
+    // Highlight tombol episode
     document.querySelectorAll('.ep-btn').forEach(b => b.classList.remove('ep-active'));
-    document.getElementById(`ep-btn-${idx}`)?.classList.add('ep-active');
-    const histItem = { ...activeDrama, lastEp: idx + 1 };
-    history = [histItem, ...history.filter(h => h.id !== activeDrama.id)].slice(0, 6);
-    localStorage.setItem('dramaxin_history', JSON.stringify(history));
+    const activeBtn = document.getElementById(`ep-btn-${idx}`);
+    if (activeBtn) {
+        activeBtn.classList.add('ep-active');
+        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // 5. Simpan History (Tetap maksimal 6)
+    if (activeDrama) {
+        const histItem = { 
+            ...activeDrama, 
+            lastEp: idx + 1,
+            time: Date.now() 
+        };
+        history = [histItem, ...history.filter(h => h.id !== activeDrama.id)].slice(0, 6);
+        localStorage.setItem('dramaxin_history', JSON.stringify(history));
+    }
 }
+
 
 function updateBookmarkUI() {
     const isBook = bookmarks.find(b => b.id === activeDrama.id);
