@@ -1,11 +1,13 @@
 const API_BASE = "/api-proxy";
-let epData = [], currentEpIndex = -1;
+let epData = [], currentEpIndex = -1, controlTimeout;
 let history = JSON.parse(localStorage.getItem('dramaxin_history') || '[]');
 let bookmarks = JSON.parse(localStorage.getItem('dramaxin_bookmarks') || '[]');
 let activeDrama = null;
 
 const player = document.getElementById('mainPlayer');
 const playIcon = document.getElementById('playIcon');
+const videoControls = document.getElementById('videoControls');
+const seekBar = document.getElementById('seekBar');
 
 async function apiGet(path) {
     try {
@@ -14,14 +16,30 @@ async function apiGet(path) {
     } catch (e) { return null; }
 }
 
-// --- PLAYER CONTROLS ---
+// --- PLAYER CONTROLS & AUTO-HIDE ---
+function showControls() {
+    videoControls.classList.remove('opacity-0', 'pointer-events-none');
+    videoControls.classList.add('opacity-100', 'pointer-events-auto');
+    clearTimeout(controlTimeout);
+    controlTimeout = setTimeout(() => {
+        if (!player.paused) {
+            videoControls.classList.remove('opacity-100', 'pointer-events-auto');
+            videoControls.classList.add('opacity-0', 'pointer-events-none');
+        }
+    }, 3000);
+}
+
+document.getElementById('videoContainer').addEventListener('click', showControls);
+
 function togglePlay() {
     if (player.paused) {
         player.play();
         playIcon.className = "fa-solid fa-pause";
+        showControls();
     } else {
         player.pause();
         playIcon.className = "fa-solid fa-play ml-1";
+        showControls();
     }
 }
 
@@ -30,18 +48,40 @@ function toggleFullscreen() {
     if (!document.fullscreenElement) {
         container.requestFullscreen?.() || container.webkitRequestFullscreen?.();
     } else {
-        document.exitFullscreen?.() || document.webkitExitFullscreen?.();
+        document.exitFullscreen?.();
     }
+}
+
+player.ontimeupdate = () => {
+    if (!player.duration) return;
+    seekBar.value = (player.currentTime / player.duration) * 100;
+    document.getElementById('curTime').innerText = formatTime(player.currentTime);
+    document.getElementById('durTime').innerText = formatTime(player.duration);
+};
+
+seekBar.oninput = () => {
+    player.currentTime = (seekBar.value / 100) * player.duration;
+};
+
+function formatTime(sec) {
+    if (isNaN(sec)) return "00:00";
+    let m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+    return `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
+}
+
+function changeQuality() {
+    const t = player.currentTime;
+    player.load();
+    player.currentTime = t;
+    player.play();
 }
 
 function playSibling(dir) {
-    const newIdx = currentEpIndex + dir;
-    if (newIdx >= 0 && newIdx < epData.length) {
-        playEp(newIdx);
-    }
+    const n = currentEpIndex + dir;
+    if (n >= 0 && n < epData.length) playEp(n);
 }
 
-// --- NAVIGATION & RENDER ---
+// --- NAVIGASI & RENDER ---
 async function switchView(mode, el) {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('nav-active'));
     if (el) el.classList.add('nav-active');
@@ -51,7 +91,7 @@ async function switchView(mode, el) {
 
     if (mode === 'library') return loadLibrary();
 
-    const path = (mode === 'foryou') ? '/netshort/foryou' : '/netshort/theaters';
+    const path = (mode === 'home' || mode === 'hot') ? '/netshort/theaters' : '/netshort/foryou';
     const data = await apiGet(path);
     renderContent(data, mode);
 }
@@ -90,7 +130,7 @@ function createDramaCard(item, isHist = false) {
     div.onclick = () => openDetail(id, title, finalCover, isHist ? item.lastEp : 1);
     div.innerHTML = `
         <div class="aspect-[3/4] rounded-xl overflow-hidden glass mb-1 relative border border-white/5">
-            <img src="${finalCover}" class="w-full h-full object-cover" loading="lazy">
+            <img src="${finalCover}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://via.placeholder.com/300x400?text=No+Poster'">
             <div class="absolute bottom-1 right-1 bg-red-600 text-[8px] font-black px-1.5 py-0.5 rounded text-white shadow-xl">
                 ${isHist ? 'EP '+item.lastEp : (item.totalEpisode || item.episodeNum || '??') + ' EP'}
             </div>
@@ -100,12 +140,13 @@ function createDramaCard(item, isHist = false) {
     return div;
 }
 
+// --- MODAL & DATA DETAIL ---
 async function openDetail(id, title, cover, startEp = 1) {
     const modal = document.getElementById('detailModal');
     player.pause(); player.src = "";
-    playIcon.className = "fa-solid fa-play ml-1";
     modal.classList.remove('hidden');
     document.body.style.overflow = "hidden";
+    showControls();
 
     document.getElementById('modalTitle').innerText = title;
     document.getElementById('modalDesc').innerText = "Memuat...";
@@ -156,7 +197,7 @@ function playEp(idx) {
 function updateBookmarkUI() {
     const isBook = bookmarks.find(b => b.id === activeDrama.id);
     document.getElementById('modalAction').innerHTML = `
-        <button onclick="toggleBook()" class="w-10 h-10 glass rounded-full flex items-center justify-center">
+        <button onclick="toggleBook()" class="w-10 h-10 glass rounded-full flex items-center justify-center text-white">
             <i class="fa-${isBook ? 'solid' : 'regular'} fa-bookmark ${isBook ? 'text-red-500' : ''}"></i>
         </button>
     `;
@@ -174,7 +215,7 @@ function loadLibrary() {
     const content = document.getElementById('appContent');
     content.innerHTML = `
         <div class="space-y-12 pb-20">
-            <section><h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">History (Maks 6)</h2><div id="hG" class="grid grid-cols-3 gap-3"></div></section>
+            <section><h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">History</h2><div id="hG" class="grid grid-cols-3 gap-3"></div></section>
             <section><h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Bookmark</h2><div id="bG" class="grid grid-cols-3 gap-3"></div></section>
         </div>
     `;
@@ -185,7 +226,7 @@ function loadLibrary() {
 
 async function performSearch(q) {
     const content = document.getElementById('appContent');
-    content.innerHTML = '<div class="py-20 text-center text-red-600 font-bold text-xs uppercase">Loading...</div>';
+    content.innerHTML = '<div class="py-20 text-center text-red-600 font-bold text-xs">MENCARI...</div>';
     const data = await apiGet(`/netshort/search?query=${encodeURIComponent(q)}`);
     const items = data?.searchCodeSearchResult || [];
     content.innerHTML = `<h2 class="text-[10px] font-black text-gray-500 mb-6 uppercase tracking-widest">Hasil: ${q}</h2><div id="sG" class="grid grid-cols-3 gap-3 pb-24"></div>`;
