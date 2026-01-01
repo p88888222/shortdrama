@@ -3,87 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DRAMAXIN</title>
+    <title>Dramaxin - Nonton Drama Pendek</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0b0d12; color: #f8fafc; }
-        ::-webkit-scrollbar { display: none; }
-        .nav-active { color: #ef4444 !important; }
-        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
-        .ep-active { background-color: rgba(239, 68, 68, 0.2) !important; border-color: rgba(239, 68, 68, 0.5) !important; color: #ef4444 !important; }
-        input[type=range] { height: 4px; appearance: none; background: rgba(255,255,255,0.2); border-radius: 5px; }
-        input[type=range]::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; background: #ef4444; border-radius: 50%; cursor: pointer; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .nav-active { color: #ef4444; border-bottom: 2px solid #ef4444; }
+        .ep-active { background: rgba(239, 68, 68, 0.1); border-color: #ef4444 !important; }
+        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); }
     </style>
 </head>
-<body class="pb-24">
-    <header class="sticky top-0 z-40 bg-[#0b0d12]/90 backdrop-blur-xl p-4">
-        <h1 class="text-2xl font-black text-red-600 italic tracking-tighter mb-4">DRAMAXIN</h1>
-        <div class="glass-card px-4 py-2.5 rounded-2xl flex items-center gap-3">
-            <i class="fa-solid fa-magnifying-glass text-gray-500 text-sm"></i>
-            <input id="searchInput" type="text" placeholder="Cari drama..." class="bg-transparent border-none outline-none text-sm w-full text-white">
-        </div>
-    </header>
+<body class="bg-[#0f0f0f] text-gray-200 font-sans selection:bg-red-500/30">
 
-    <main id="appContent" class="p-4 space-y-8"></main>
-
-    <nav class="fixed bottom-0 left-0 right-0 bg-[#0b0d12]/95 backdrop-blur-lg border-t border-white/5 flex justify-around py-4 z-50">
-        <button onclick="switchView('home', this)" class="nav-item nav-active flex flex-col items-center gap-1 text-gray-500">
-            <i class="fa-solid fa-house text-xl"></i><span class="text-[9px] font-bold">HOME</span>
-        </button>
-        <button onclick="switchView('foryou', this)" class="nav-item flex flex-col items-center gap-1 text-gray-500">
-            <i class="fa-solid fa-wand-magic-sparkles text-xl"></i><span class="text-[9px] font-bold">FOR YOU</span>
-        </button>
-        <button onclick="switchView('hot', this)" class="nav-item flex flex-col items-center gap-1 text-gray-500">
-            <i class="fa-solid fa-fire text-xl"></i><span class="text-[9px] font-bold">HOT</span>
-        </button>
-        <button onclick="switchView('library', this)" class="nav-item flex flex-col items-center gap-1 text-gray-500">
-            <i class="fa-solid fa-bookmark text-xl"></i><span class="text-[9px] font-bold">LIBRARY</span>
-        </button>
-    </nav>
-
-    <div id="detailModal" class="fixed inset-0 bg-[#0b0d12] z-[60] hidden flex flex-col h-full overflow-hidden">
-        <div class="relative w-full max-w-[320px] aspect-[9/16] mx-auto mt-2 bg-black rounded-2xl overflow-hidden shadow-2xl group">
-            <video id="mainPlayer" class="w-full h-full object-cover" playsinline></video>
-            <div class="absolute inset-0 flex flex-col justify-between p-4 bg-gradient-to-t from-black/80 via-transparent to-black/40">
-                <div class="flex justify-between items-start">
-                    <button onclick="closeModal()" class="w-10 h-10 bg-black/20 backdrop-blur-md rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
-                    <div id="playerHeaderRight" class="flex flex-col gap-2">
-                        <select id="qualitySelect" onchange="changeQuality()" class="bg-black/40 text-[10px] p-1 rounded border border-white/10 outline-none text-white">
-                            <option value="1080">1080P</option><option value="720" selected>720P</option><option value="480">480P</option>
-                        </select>
-                        <button onclick="toggleFullscreen()" class="w-8 h-8 bg-black/20 rounded-lg flex items-center justify-center text-white"><i class="fa-solid fa-expand text-xs"></i></button>
-                    </div>
-                </div>
-                <div class="space-y-3">
-                    <div class="flex flex-col gap-1">
-                        <input type="range" id="seekBar" value="0" step="0.1" class="w-full accent-red-600">
-                        <div class="flex justify-between text-[8px] font-bold text-gray-400">
-                            <span id="curTime">00:00</span><span id="durTime">00:00</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-6 text-white">
-                            <button onclick="playSibling(-1)"><i class="fa-solid fa-backward-step text-lg"></i></button>
-                            <button onclick="togglePlay()" class="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center"><i id="playIcon" class="fa-solid fa-play ml-1 text-lg"></i></button>
-                            <button onclick="playSibling(1)"><i class="fa-solid fa-forward-step text-lg"></i></button>
-                        </div>
-                        <div class="flex items-center gap-2 text-white">
-                            <i class="fa-solid fa-volume-high text-[10px]"></i>
-                            <input type="range" id="volBar" min="0" max="1" step="0.1" value="1" class="w-12">
-                        </div>
-                    </div>
-                </div>
+    <header class="sticky top-0 z-50 bg-[#0f0f0f]/80 backdrop-blur-md border-b border-white/5 px-4 py-3">
+        <div class="flex items-center gap-4">
+            <h1 class="text-red-600 font-black text-xl tracking-tighter">DRAMAXIN</h1>
+            <div class="flex-1 relative">
+                <input type="text" id="searchInput" placeholder="Cari judul drama..." 
+                    class="w-full bg-white/5 border border-white/10 rounded-full py-2 px-4 pl-10 text-xs focus:outline-none focus:border-red-600 transition">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-2.5 text-gray-500 text-[10px]"></i>
             </div>
         </div>
-        <div class="flex-1 overflow-y-auto px-6 pt-4 pb-24">
-            <h1 id="modalTitle" class="text-lg font-bold text-white mb-1"></h1>
-            <div id="modalTotalEp" class="text-[10px] font-black text-red-600 uppercase mb-3"></div>
-            <div class="glass-card p-4 rounded-xl mb-6"><p id="modalDesc" class="text-xs text-gray-400 italic leading-relaxed"></p></div>
-            <div id="modalEpisodes" class="grid grid-cols-1 gap-2"></div>
+        <nav class="flex justify-around mt-4">
+            <button onclick="switchView('foryou', this)" class="nav-item nav-active text-[10px] font-bold pb-2 uppercase tracking-widest">For You</button>
+            <button onclick="switchView('home', this)" class="nav-item text-[10px] font-bold pb-2 uppercase tracking-widest">Terbaru</button>
+            <button onclick="switchView('hot', this)" class="nav-item text-[10px] font-bold pb-2 uppercase tracking-widest">Populer</button>
+            <button onclick="switchView('library', this)" class="nav-item text-[10px] font-bold pb-2 uppercase tracking-widest">Library</button>
+        </nav>
+    </header>
+
+    <main id="appContent" class="p-4 pb-24 min-h-screen">
+        </main>
+
+    <div id="detailModal" class="fixed inset-0 z-[60] bg-black hidden overflow-y-auto">
+        <div class="sticky top-0 z-10 p-4 flex justify-between items-start bg-gradient-to-b from-black to-transparent" id="playerHeader">
+            <button onclick="closeModal()" class="w-10 h-10 glass-card rounded-full flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+            <div id="playerHeaderRight" class="flex gap-2"></div>
+        </div>
+
+        <div class="max-w-md mx-auto">
+            <div class="relative aspect-video bg-black w-full sticky top-0">
+                <video id="mainPlayer" class="w-full h-full" playsinline></video>
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <i id="playIcon" class="fa-solid fa-play text-4xl text-white/50 opacity-0 transition-opacity"></i>
+                </div>
+            </div>
+
+            <div class="p-4">
+                <h2 id="modalTitle" class="text-lg font-bold mb-1">Judul Drama</h2>
+                <div id="modalTotalEp" class="text-red-500 text-[10px] font-bold mb-4">... EPISODE</div>
+                <p id="modalDesc" class="text-gray-400 text-xs leading-relaxed mb-6 line-clamp-3" onclick="this.classList.toggle('line-clamp-3')"></p>
+                
+                <h3 class="text-[10px] font-bold uppercase tracking-widest mb-4 text-gray-500">Daftar Episode</h3>
+                <div id="modalEpisodes" class="space-y-2"></div>
+            </div>
         </div>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>
