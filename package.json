@@ -1,7 +1,6 @@
 {
-  "name": "dramaxin-box-netshort",
+  "name": "dramaxin",
   "version": "1.0.0",
-  "description": "Drama Box Netshort Edition",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -11,3 +10,4 @@
     "axios": "^1.6.0"
   }
 }
+
