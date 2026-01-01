@@ -1,0 +1,137 @@
+/* Variables & Base */
+:root {
+    --accent: #ff0032;
+    --bg: #08090d;
+    --card-bg: #15171e;
+    --glass-white: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+body {
+    background-color: var(--bg);
+    color: #e2e8f0;
+    font-family: 'Inter', -apple-system, sans-serif;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Glassmorphism Components */
+.glass {
+    background: var(--glass-white);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+}
+
+.glass-dark {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+}
+
+/* Premium Navigation */
+.nav-item {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.4;
+}
+
+.nav-active {
+    opacity: 1;
+    color: var(--accent) !important;
+    transform: translateY(-4px);
+}
+
+.nav-active i {
+    filter: drop-shadow(0 0 8px var(--accent));
+}
+
+/* Premium Card Design */
+.drama-card {
+    transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.drama-card:active {
+    transform: scale(0.96);
+}
+
+.card-img-container {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    background: #1a1a1a;
+}
+
+.card-img-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 50%);
+}
+
+.card-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 9px;
+    font-weight: 900;
+    color: white;
+}
+
+/* Custom Player UI */
+#videoControls {
+    transition: opacity 0.4s ease;
+    background: radial-gradient(circle at center, transparent 10%, rgba(0,0,0,0.85) 100%);
+}
+
+#seekBar {
+    accent-color: var(--accent);
+    height: 4px;
+    border-radius: 10px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.2);
+}
+
+#seekBar::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--accent);
+}
+
+/* Episode Buttons */
+.ep-btn {
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: all 0.2s ease;
+}
+
+.ep-active {
+    background: linear-gradient(135deg, var(--accent), #ff4d00) !important;
+    border-color: transparent !important;
+    color: white !important;
+    box-shadow: 0 8px 20px rgba(255, 0, 50, 0.3);
+    transform: scale(1.02);
+}
+
+/* Global Utilities */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.premium-gradient-text {
+    background: linear-gradient(to right, #ffffff, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
