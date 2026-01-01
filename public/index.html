@@ -10,15 +10,17 @@
         body { background-color: #0b0d12; color: #e2e8f0; font-family: sans-serif; }
         .tab-active { color: #ef4444; border-bottom: 3px solid #ef4444; }
         ::-webkit-scrollbar { display: none; }
+        /* Tampilan Video Standar (Kecil) */
+        .video-box { width: 100%; max-width: 480px; margin: 0 auto; background: #000; position: relative; }
     </style>
 </head>
 <body>
-    <header class="sticky top-0 z-40 bg-[#0b0d12]/90 backdrop-blur-md border-b border-white/5 p-4">
+    <header class="sticky top-0 z-40 bg-[#0b0d12]/95 backdrop-blur-md border-b border-white/5 p-4">
         <div class="flex items-center justify-between gap-4 mb-4">
             <h1 class="text-2xl font-black text-red-600 italic tracking-tighter">DRAMAXIN</h1>
             <div class="flex-1 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-2">
                 <i class="fa-solid fa-magnifying-glass text-gray-500 text-xs"></i>
-                <input id="searchInput" type="text" placeholder="Cari CEO, Pernikahan..." class="bg-transparent border-none outline-none text-xs w-full text-white">
+                <input id="searchInput" type="text" placeholder="Cari drama..." class="bg-transparent border-none outline-none text-xs w-full text-white">
             </div>
         </div>
         <nav class="flex gap-8 px-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
@@ -28,23 +30,24 @@
     </header>
 
     <main class="p-4">
-        <h2 id="sectionLabel" class="text-[10px] font-black text-gray-500 mb-4 tracking-widest uppercase italic">Memuat...</h2>
+        <h2 id="sectionLabel" class="text-[10px] font-black text-gray-500 mb-4 tracking-widest uppercase">Memuat...</h2>
         <div id="mainContainer" class="grid grid-cols-3 gap-3"></div>
     </main>
 
     <div id="detailModal" class="fixed inset-0 bg-[#0b0d12] z-50 hidden flex flex-col h-full overflow-hidden">
-        <div class="relative w-full aspect-video bg-black flex items-center justify-center">
+        <div class="video-box shadow-2xl">
             <video id="mainPlayer" class="w-full h-full" playsinline controls></video>
-            <button onclick="closeModal()" class="absolute top-4 left-4 p-2 bg-black/40 rounded-full text-white">
-                <i class="fa-solid fa-chevron-left w-5 h-5 flex items-center justify-center"></i>
+            <button onclick="closeModal()" class="absolute top-2 right-2 w-8 h-8 bg-black/60 rounded-full text-white flex items-center justify-center z-50">
+                <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
-        <div class="flex-1 overflow-y-auto px-5 pt-6 pb-24">
+        
+        <div class="flex-1 overflow-y-auto px-5 pt-4 pb-24">
             <h1 id="modalTitle" class="text-lg font-bold text-white mb-2"></h1>
             <div id="modalLabels" class="flex flex-wrap gap-2 mb-4 text-[8px] font-bold"></div>
             <div class="bg-white/5 p-4 rounded-xl mb-6 border border-white/5">
                 <p id="modalDesc" class="text-xs text-gray-400 leading-relaxed italic mb-3"></p>
-                <div class="border-t border-white/10 pt-3">
+                <div class="border-t border-white/10 pt-3 flex justify-between">
                     <span id="modalTotalEp" class="text-[10px] font-bold text-red-500 uppercase"></span>
                 </div>
             </div>
