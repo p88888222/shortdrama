@@ -6,6 +6,7 @@
     <title>DRAMAXIN PREMIUM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="pb-24">
@@ -20,26 +21,37 @@
     <main id="appContent" class="p-5 space-y-10 min-h-screen"></main>
 
     <nav class="fixed bottom-0 left-0 right-0 z-50 glass-dark border-t border-white/5 px-8 py-4 flex justify-between items-center rounded-t-[32px]">
-        <button onclick="switchView('home', this)" class="nav-item nav-active flex flex-col items-center gap-1 text-gray-400 opacity-40 transition-all"><i class="fa-solid fa-house-chimney text-xl"></i><span class="text-[9px] font-bold uppercase">Home</span></button>
-        <button onclick="switchView('foryou', this)" class="nav-item flex flex-col items-center gap-1 text-gray-400 opacity-40 transition-all"><i class="fa-solid fa-compass text-xl"></i><span class="text-[9px] font-bold uppercase">Discover</span></button>
-        <button onclick="switchView('hot', this)" class="nav-item flex flex-col items-center gap-1 text-gray-400 opacity-40 transition-all"><i class="fa-solid fa-fire text-xl"></i><span class="text-[9px] font-bold uppercase">Hot</span></button>
-        <button onclick="switchView('library', this)" class="nav-item flex flex-col items-center gap-1 text-gray-400 opacity-40 transition-all"><i class="fa-solid fa-clapperboard text-xl"></i><span class="text-[9px] font-bold uppercase">Library</span></button>
+        <button onclick="switchView('home', this)" class="nav-item nav-active flex flex-col items-center gap-1 text-gray-400">
+            <i class="fa-solid fa-house-chimney text-xl"></i><span class="text-[9px] font-bold uppercase">Home</span>
+        </button>
+        <button onclick="switchView('foryou', this)" class="nav-item flex flex-col items-center gap-1 text-gray-400">
+            <i class="fa-solid fa-compass text-xl"></i><span class="text-[9px] font-bold uppercase">Discover</span>
+        </button>
+        <button onclick="switchView('hot', this)" class="nav-item flex flex-col items-center gap-1 text-gray-400">
+            <i class="fa-solid fa-fire-flame text-xl"></i><span class="text-[9px] font-bold uppercase">Hot</span>
+        </button>
+        <button onclick="switchView('library', this)" class="nav-item flex flex-col items-center gap-1 text-gray-400">
+            <i class="fa-solid fa-clapperboard text-xl"></i><span class="text-[9px] font-bold uppercase">Library</span>
+        </button>
     </nav>
 
     <div id="detailModal" class="fixed inset-0 z-[60] bg-[#08090d] hidden flex flex-col overflow-hidden">
         <div class="flex-1 overflow-y-auto no-scrollbar">
             <div id="videoContainer" class="w-full bg-black aspect-video relative sticky top-0 z-20 shadow-2xl">
                 <video id="mainPlayer" class="w-full h-full object-contain" playsinline crossorigin="anonymous"></video>
-                <div id="videoControls" class="absolute inset-0 flex flex-col justify-between p-5 opacity-0 pointer-events-none">
+                
+                <div id="videoControls" class="absolute inset-0 flex flex-col justify-between p-5 opacity-0 pointer-events-none transition-opacity duration-500">
                     <div class="flex justify-between items-center pointer-events-auto">
                         <button onclick="closeModal()" class="w-11 h-11 glass rounded-full flex items-center justify-center text-white"><i class="fa-solid fa-arrow-left"></i></button>
                         <div id="modalAction"></div>
                     </div>
+                    
                     <div class="flex items-center justify-center gap-14 pointer-events-auto">
-                        <button onclick="playSibling(-1)" class="text-white text-2xl"><i class="fa-solid fa-backward-step"></i></button>
-                        <button onclick="togglePlay()" class="w-16 h-16 bg-white rounded-full flex items-center justify-center text-black text-2xl shadow-xl"><i id="playIcon" class="fa-solid fa-play ml-1"></i></button>
-                        <button onclick="playSibling(1)" class="text-white text-2xl"><i class="fa-solid fa-forward-step"></i></button>
+                        <button onclick="playSibling(-1)" class="text-white text-2xl drop-shadow-lg"><i class="fa-solid fa-backward-step"></i></button>
+                        <button onclick="togglePlay()" class="w-16 h-16 bg-white rounded-full flex items-center justify-center text-black text-2xl shadow-2xl"><i id="playIcon" class="fa-solid fa-play ml-1"></i></button>
+                        <button onclick="playSibling(1)" class="text-white text-2xl drop-shadow-lg"><i class="fa-solid fa-forward-step"></i></button>
                     </div>
+
                     <div class="space-y-3 pointer-events-auto">
                         <div class="flex items-center gap-4">
                             <span id="curTime" class="text-[10px] text-gray-300 font-mono">00:00</span>
@@ -50,9 +62,10 @@
                     </div>
                 </div>
             </div>
+            
             <div class="p-6 space-y-6">
                 <h2 id="modalTitle" class="text-2xl font-black text-white mb-2 tracking-tight"></h2>
-                <div id="modalTotalEp" class="inline-block px-3 py-1 rounded-full bg-red-600/10 text-red-500 text-[9px] font-black uppercase tracking-widest border border-red-600/20"></div>
+                <div id="modalTotalEp" class="inline-block px-3 py-1 rounded-full bg-red-600/10 text-red-500 text-[9px] font-black uppercase border border-red-600/20"></div>
                 <div class="glass p-5 rounded-[24px]"><p id="modalDesc" class="text-gray-400 text-sm leading-relaxed"></p></div>
                 <div class="space-y-4">
                     <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Select Episode</h3>
