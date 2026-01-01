@@ -7,10 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        body { background-color: #0b0d12; color: #f8fafc; font-family: sans-serif; overflow-x: hidden; }
+        body { background-color: #0b0d12; color: #f8fafc; font-family: sans-serif; }
         .nav-active { color: #ef4444 !important; }
-        .ep-active { background-color: rgba(239, 68, 68, 0.2) !important; border: 1px solid #ef4444 !important; color: #ef4444 !important; }
         .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        .ep-active { background-color: rgba(239, 68, 68, 0.2) !important; border: 1px solid #ef4444 !important; color: #ef4444 !important; }
         ::-webkit-scrollbar { display: none; }
     </style>
 </head>
@@ -26,7 +26,7 @@
 
     <main id="appContent" class="p-4 space-y-8 min-h-screen"></main>
 
-    <nav class="fixed bottom-0 left-0 right-0 z-50 bg-[#0b0d12]/95 border-t border-white/5 px-6 py-3 flex justify-between">
+    <nav class="fixed bottom-0 left-0 right-0 z-50 bg-[#0b0d12]/95 border-t border-white/5 px-6 py-3 flex justify-between items-center shadow-2xl">
         <button onclick="switchView('home', this)" class="nav-item nav-active flex flex-col items-center gap-1 text-gray-500">
             <i class="fa-solid fa-house text-lg"></i><span class="text-[9px] font-bold uppercase">Home</span>
         </button>
@@ -53,7 +53,7 @@
                 <div id="modalTotalEp" class="text-red-500 text-[10px] font-bold mb-4 uppercase"></div>
                 <div class="glass p-4 rounded-2xl mb-6"><p id="modalDesc" class="text-gray-400 text-xs italic"></p></div>
                 <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-4">Daftar Episode</h3>
-                <div id="modalEpisodes" class="space-y-2 pb-20"></div>
+                <div id="modalEpisodes" class="space-y-2 pb-32"></div>
             </div>
         </div>
     </div>
