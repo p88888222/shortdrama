@@ -122,21 +122,20 @@ function renderContent(data, mode) {
 function createDramaCard(item, isHist = false) {
     const id = item.shortPlayId || item.id;
     const title = item.shortPlayName || item.title || item.bookName;
-    const cover = item.cover || item.shortPlayCover || item.groupShortPlayCover;
+    const cover = item.cover || item.shortPlayCover;
     const finalCover = cover?.startsWith('http') ? cover : `https://api.sansekai.my.id${cover?.startsWith('/') ? '' : '/'}${cover}`;
     
     const div = document.createElement('div');
-    div.className = "cursor-pointer active:scale-95 transition-all";
+    div.className = "drama-card animate-fade-in";
     div.onclick = () => openDetail(id, title, finalCover, isHist ? item.lastEp : 1);
     div.innerHTML = `
-        <div class="aspect-[3/4] rounded-xl overflow-hidden glass mb-1 relative border border-white/5">
-            <img src="${finalCover}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://via.placeholder.com/300x400?text=No+Poster'">
-            <div class="absolute bottom-1 right-1 bg-red-600 text-[8px] font-black px-1.5 py-0.5 rounded text-white shadow-xl">
+        <div class="card-img-container aspect-[3/4.2]">
+            <img src="${finalCover}" class="w-full h-full object-cover" loading="lazy">
+            <div class="card-badge glass-dark">
                 ${isHist ? 'EP '+item.lastEp : (item.totalEpisode || item.episodeNum || '??') + ' EP'}
             </div>
         </div>
-        <h3 class="text-[9px] font-bold line-clamp-2 text-gray-500 uppercase leading-tight">${title}</h3>
-    `;
+        <h3 class="mt-3 text-[10px] font-bold text-gray-400 line-clamp-2 leading-snug">${title}</h3>`;
     return div;
 }
 
