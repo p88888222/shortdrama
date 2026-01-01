@@ -1,29 +1,19 @@
 const express = require('express');
-const axios = require('axios');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
-app.get('/api-proxy/**', async (req, res) => {
-    try {
-        const targetPath = req.params[0];
-        const queryParams = new URLSearchParams(req.query).toString();
-        const targetUrl = `https://api.sansekai.my.id/api/${targetPath}${queryParams ? '?' + queryParams : ''}`;
-        
-        const response = await axios.get(targetUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(500).json({ error: "API Failure" });
-    }
+app.use('/api-proxy', createProxyMiddleware({
+    target: 'https://api.sansekai.my.id',
+    changeOrigin: true,
+    pathRewrite: { '^/api-proxy': '' },
+}));
+
+app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
 });
-
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
