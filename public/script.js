@@ -116,4 +116,3 @@ document.getElementById('searchInput').addEventListener('keypress', (e) => {
 });
 
 changeTab('foryou');
-
