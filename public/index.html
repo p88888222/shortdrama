@@ -3,59 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dramaxin - Nonton Drama Pendek</title>
+    <title>DRAMAXIN</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .nav-active { color: #ef4444; border-bottom: 2px solid #ef4444; }
-        .ep-active { background: rgba(239, 68, 68, 0.1); border-color: #ef4444 !important; }
-        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); }
+        body { background-color: #0b0d12; color: #f8fafc; font-family: sans-serif; }
+        .nav-active { color: #ef4444 !important; border-bottom: 2px solid #ef4444; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        .ep-active { background-color: rgba(239, 68, 68, 0.2) !important; border: 1px solid #ef4444 !important; color: #ef4444 !important; }
+        ::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body class="bg-[#0f0f0f] text-gray-200 font-sans selection:bg-red-500/30">
+<body class="pb-24">
 
-    <header class="sticky top-0 z-50 bg-[#0f0f0f]/80 backdrop-blur-md border-b border-white/5 px-4 py-3">
-        <div class="flex items-center gap-4">
-            <h1 class="text-red-600 font-black text-xl tracking-tighter">DRAMAXIN</h1>
-            <div class="flex-1 relative">
-                <input type="text" id="searchInput" placeholder="Cari judul drama..." 
-                    class="w-full bg-white/5 border border-white/10 rounded-full py-2 px-4 pl-10 text-xs focus:outline-none focus:border-red-600 transition">
-                <i class="fa-solid fa-magnifying-glass absolute left-4 top-2.5 text-gray-500 text-[10px]"></i>
-            </div>
+    <header class="sticky top-0 z-40 bg-[#0b0d12]/90 backdrop-blur-md p-4">
+        <div class="flex items-center justify-between mb-4">
+            <h1 class="text-2xl font-black text-red-600 italic tracking-tighter">DRAMAXIN</h1>
         </div>
-        <nav class="flex justify-around mt-4">
-            <button onclick="switchView('foryou', this)" class="nav-item nav-active text-[10px] font-bold pb-2 uppercase tracking-widest">For You</button>
-            <button onclick="switchView('home', this)" class="nav-item text-[10px] font-bold pb-2 uppercase tracking-widest">Terbaru</button>
-            <button onclick="switchView('hot', this)" class="nav-item text-[10px] font-bold pb-2 uppercase tracking-widest">Populer</button>
-            <button onclick="switchView('library', this)" class="nav-item text-[10px] font-bold pb-2 uppercase tracking-widest">Library</button>
+        <div class="glass px-4 py-2 rounded-full flex items-center gap-3 mb-4">
+            <i class="fa-solid fa-magnifying-glass text-gray-500"></i>
+            <input id="searchInput" type="text" placeholder="Cari drama..." class="bg-transparent border-none outline-none text-sm w-full text-white">
+        </div>
+        <nav class="flex justify-around border-b border-white/5">
+            <button onclick="switchView('foryou', this)" class="nav-item nav-active pb-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 transition">For You</button>
+            <button onclick="switchView('home', this)" class="nav-item pb-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 transition">Terbaru</button>
+            <button onclick="switchView('hot', this)" class="nav-item pb-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 transition">Hot</button>
+            <button onclick="switchView('library', this)" class="nav-item pb-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 transition">Library</button>
         </nav>
     </header>
 
-    <main id="appContent" class="p-4 pb-24 min-h-screen">
-        </main>
+    <main id="appContent" class="p-4 space-y-8 min-h-screen"></main>
 
-    <div id="detailModal" class="fixed inset-0 z-[60] bg-black hidden overflow-y-auto">
-        <div class="sticky top-0 z-10 p-4 flex justify-between items-start bg-gradient-to-b from-black to-transparent" id="playerHeader">
-            <button onclick="closeModal()" class="w-10 h-10 glass-card rounded-full flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
-            <div id="playerHeaderRight" class="flex gap-2"></div>
+    <div id="detailModal" class="fixed inset-0 z-[60] bg-[#0b0d12] hidden flex flex-col overflow-hidden">
+        <div class="p-4 flex justify-between items-center bg-gradient-to-b from-black/50 to-transparent">
+            <button onclick="closeModal()" class="w-10 h-10 glass rounded-full flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+            <div id="modalAction" class="flex gap-2"></div>
         </div>
 
-        <div class="max-w-md mx-auto">
-            <div class="relative aspect-video bg-black w-full sticky top-0">
-                <video id="mainPlayer" class="w-full h-full" playsinline></video>
-                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <i id="playIcon" class="fa-solid fa-play text-4xl text-white/50 opacity-0 transition-opacity"></i>
-                </div>
+        <div class="flex-1 overflow-y-auto">
+            <div class="w-full bg-black aspect-video relative sticky top-0 z-20">
+                <video id="mainPlayer" class="w-full h-full" controls playsinline></video>
             </div>
 
-            <div class="p-4">
-                <h2 id="modalTitle" class="text-lg font-bold mb-1">Judul Drama</h2>
-                <div id="modalTotalEp" class="text-red-500 text-[10px] font-bold mb-4">... EPISODE</div>
-                <p id="modalDesc" class="text-gray-400 text-xs leading-relaxed mb-6 line-clamp-3" onclick="this.classList.toggle('line-clamp-3')"></p>
-                
-                <h3 class="text-[10px] font-bold uppercase tracking-widest mb-4 text-gray-500">Daftar Episode</h3>
-                <div id="modalEpisodes" class="space-y-2"></div>
+            <div class="p-6">
+                <h2 id="modalTitle" class="text-xl font-bold mb-1">Judul Drama</h2>
+                <div id="modalTotalEp" class="text-red-500 text-[10px] font-bold mb-4 uppercase">... Total Episode</div>
+                <div class="glass p-4 rounded-2xl mb-6">
+                    <p id="modalDesc" class="text-gray-400 text-xs leading-relaxed italic"></p>
+                </div>
+
+                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Daftar Episode</h3>
+                <div id="modalEpisodes" class="grid grid-cols-1 gap-2 pb-20"></div>
             </div>
         </div>
     </div>
