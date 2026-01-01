@@ -1,141 +1,79 @@
 const API_BASE = "/api-proxy";
-let epData = [];
-let currentEpIndex = -1;
+let epData = [], currentEpIndex = -1;
 let history = JSON.parse(localStorage.getItem('dramaxin_history') || '[]');
 let bookmarks = JSON.parse(localStorage.getItem('dramaxin_bookmarks') || '[]');
 
-const player = document.getElementById('mainPlayer');
-const playIcon = document.getElementById('playIcon');
+const player = document.getElementById('mainPlayer'), playIcon = document.getElementById('playIcon');
+const seekBar = document.getElementById('seekBar'), volBar = document.getElementById('volBar');
 
-/**
- * 1. NAVIGASI UTAMA
- * Home mengambil dari /theaters, Hot mengambil dari /foryou
- */
+player.ontimeupdate = () => {
+    seekBar.value = (player.currentTime / player.duration) * 100 || 0;
+    document.getElementById('curTime').innerText = formatTime(player.currentTime);
+    document.getElementById('durTime').innerText = formatTime(player.duration);
+};
+seekBar.oninput = () => player.currentTime = (seekBar.value / 100) * player.duration;
+volBar.oninput = () => player.volume = volBar.value;
+
+function formatTime(sec) {
+    if (isNaN(sec)) return "00:00";
+    let m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+    return `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
+}
+
 async function switchView(mode, el) {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('nav-active'));
     if (el) el.classList.add('nav-active');
-    
-    const content = document.getElementById('appContent');
-    content.innerHTML = '<div class="py-20 text-center animate-pulse text-red-600 font-bold text-[10px] uppercase tracking-widest">Sinkronisasi...</div>';
+    document.getElementById('appContent').innerHTML = '<div class="py-20 text-center animate-pulse text-red-600 font-bold text-xs">SINKRONISASI...</div>';
 
-    if (mode === 'library') {
-        loadLibrary();
-    } else {
-        const path = (mode === 'hot') ? '/netshort/foryou' : '/netshort/theaters';
-        const data = await apiGet(path);
-        renderContent(data, mode);
-    }
+    if (mode === 'library') return loadLibrary();
+    const path = (mode === 'foryou') ? '/netshort/foryou' : '/netshort/theaters';
+    const data = await apiGet(path);
+    renderContent(data, mode);
 }
 
-/**
- * 2. RENDER KONTEN (HOME & HOT)
- * Tab HOT difilter khusus untuk contentName "Viral" atau "Trending"
- */
 function renderContent(data, mode) {
     const content = document.getElementById('appContent');
     content.innerHTML = "";
-    
-    if (!data || !Array.isArray(data)) {
-        content.innerHTML = '<div class="py-20 text-center text-[10px] opacity-30">Konten tidak tersedia.</div>';
-        return;
-    }
+    if (!Array.isArray(data)) return;
 
     let hasDisplayed = false;
-
     data.forEach(cat => {
         const name = (cat.contentName || "").toUpperCase();
-        // LOGIKA FILTER: HOT hanya untuk VIRAL/TRENDING, HOME untuk selain itu
-        const isHotMatch = name.includes("VIRAL") || name.includes("TRENDING");
+        const isViral = name.includes("VIRAL") || name.includes("TRENDING");
         
-        if ((mode === 'hot' && isHotMatch) || (mode === 'home' && !isHotMatch)) {
+        let shouldShow = (mode === 'foryou') ? true : (mode === 'hot' ? isViral : !isViral);
+        
+        if (shouldShow) {
             const section = document.createElement('section');
-            section.className = "mb-8";
-            section.innerHTML = `
-                <div class="flex items-center gap-2 mb-4">
-                    <div class="w-1 h-3 bg-red-600 rounded-full"></div>
-                    <h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">${cat.contentName}</h2>
-                </div>
-                <div class="grid grid-cols-3 gap-3"></div>
-            `;
-            const grid = section.querySelector('.grid');
-            (cat.contentInfos || []).forEach(item => grid.appendChild(createDramaCard(item)));
+            section.innerHTML = `<div class="flex items-center gap-2 mb-4"><div class="w-1 h-3 bg-red-600 rounded-full"></div><h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">${cat.contentName}</h2></div><div class="grid grid-cols-3 gap-3"></div>`;
+            cat.contentInfos.forEach(item => section.querySelector('.grid').appendChild(createDramaCard(item)));
             content.appendChild(section);
             hasDisplayed = true;
         }
     });
-
-    // Fallback jika tidak ada kategori yang cocok dengan filter string
-    if (!hasDisplayed && mode === 'hot' && data.length > 0) {
-        renderFallback(data[0], "DRAMA VIRAL");
-    }
+    if (!hasDisplayed) content.innerHTML = '<p class="py-20 text-center text-xs opacity-30">Konten Kosong.</p>';
 }
 
-function renderFallback(category, label) {
-    const content = document.getElementById('appContent');
-    const section = document.createElement('section');
-    section.innerHTML = `
-        <div class="flex items-center gap-2 mb-4"><div class="w-1 h-3 bg-red-600 rounded-full"></div><h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">${label}</h2></div>
-        <div class="grid grid-cols-3 gap-3"></div>
-    `;
-    const grid = section.querySelector('.grid');
-    (category.contentInfos || []).forEach(item => grid.appendChild(createDramaCard(item)));
-    content.appendChild(section);
-}
-
-/**
- * 3. LIBRARY (LIMIT HISTORY 6 DRAMA)
- */
 function loadLibrary() {
     const content = document.getElementById('appContent');
-    content.innerHTML = `
-        <div class="space-y-10">
-            <section>
-                <div class="flex items-center gap-2 mb-4"><div class="w-1 h-3 bg-red-600 rounded-full"></div><h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Terakhir Ditonton</h2></div>
-                <div id="histGrid" class="grid grid-cols-3 gap-3"></div>
-            </section>
-            <section>
-                <div class="flex items-center gap-2 mb-4"><div class="w-1 h-3 bg-red-600 rounded-full"></div><h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Koleksi Bookmark</h2></div>
-                <div id="bookGrid" class="grid grid-cols-3 gap-3"></div>
-            </section>
-        </div>`;
-
-    // Hanya tampilkan 6 riwayat terakhir
-    const histGrid = document.getElementById('histGrid');
-    const recentHistory = history.slice(0, 6);
-    if (recentHistory.length) {
-        recentHistory.forEach(item => histGrid.appendChild(createDramaCard(item, true)));
-    } else {
-        histGrid.innerHTML = '<p class="col-span-full text-[10px] opacity-20 italic py-4 text-center">Belum ada riwayat.</p>';
-    }
-
-    const bookGrid = document.getElementById('bookGrid');
-    if (bookmarks.length) {
-        bookmarks.forEach(item => bookGrid.appendChild(createDramaCard(item)));
-    } else {
-        bookGrid.innerHTML = '<p class="col-span-full text-[10px] opacity-20 italic py-4 text-center">Belum ada bookmark.</p>';
-    }
+    content.innerHTML = `<div class="space-y-10"><section><h2 class="text-[10px] font-black text-gray-400 uppercase mb-4">Terakhir Ditonton</h2><div id="hGrid" class="grid grid-cols-3 gap-3"></div></section><section><h2 class="text-[10px] font-black text-gray-400 uppercase mb-4">Koleksi Bookmark</h2><div id="bGrid" class="grid grid-cols-3 gap-3"></div></section></div>`;
+    const hGrid = document.getElementById('hGrid'), bGrid = document.getElementById('bGrid');
+    
+    // Tampilkan hanya 6 riwayat terakhir
+    history.slice(0, 6).forEach(item => hGrid.appendChild(createDramaCard(item, true)));
+    bookmarks.forEach(item => bGrid.appendChild(createDramaCard(item)));
 }
 
-/**
- * 4. DRAMA CARD & PLAYER LOGIC
- */
 function createDramaCard(item, isHist = false) {
-    const id = item.shortPlayId || item.id;
-    const title = item.shortPlayName || item.title;
+    const id = item.shortPlayId || item.id, title = item.shortPlayName || item.title;
     const cover = item.cover || item.shortPlayCover || item.groupShortPlayCover;
     const finalCover = cover?.startsWith('http') ? cover : `https://api.sansekai.my.id${cover?.startsWith('/') ? '' : '/'}${cover}`;
     const badge = isHist ? `EP ${item.lastEp}` : `${item.totalEpisode || '??'} EP`;
 
     const div = document.createElement('div');
     div.className = "cursor-pointer active:scale-95 transition-all";
-    div.onclick = () => openDetail(id, title, item.shotIntroduce || item.intro || "", item.totalEpisode || "", finalCover, isHist ? item.lastEp : 1);
-    
-    div.innerHTML = `
-        <div class="aspect-[3/4] rounded-xl overflow-hidden bg-slate-800 mb-1 relative border border-white/5 shadow-lg">
-            <img src="${finalCover}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x400?text=No+Image'">
-            <div class="absolute bottom-1 right-1 bg-red-600 text-[8px] font-black px-1.5 py-0.5 rounded text-white shadow-xl">${badge}</div>
-        </div>
-        <h3 class="text-[9px] font-bold line-clamp-2 text-gray-400 px-1 uppercase leading-tight">${title}</h3>`;
+    div.onclick = () => openDetail(id, title, item.shotIntroduce || "", item.totalEpisode || "", finalCover, isHist ? item.lastEp : 1);
+    div.innerHTML = `<div class="aspect-[3/4] rounded-xl overflow-hidden bg-slate-800 mb-1 relative border border-white/5"><img src="${finalCover}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x400?text=No+Poster'"><div class="absolute bottom-1 right-1 bg-red-600 text-[8px] font-black px-1.5 py-0.5 rounded text-white">${badge}</div></div><h3 class="text-[9px] font-bold line-clamp-2 text-gray-500 uppercase leading-tight">${title}</h3>`;
     return div;
 }
 
@@ -143,14 +81,12 @@ async function openDetail(id, title, intro, total, cover, startEp = 1) {
     const modal = document.getElementById('detailModal');
     player.pause(); player.src = "";
     modal.classList.remove('hidden');
-    
     document.getElementById('modalTitle').innerText = title;
     document.getElementById('modalDesc').innerText = intro;
     document.getElementById('modalTotalEp').innerText = `${total} TOTAL EPISODE`;
 
     const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
     epData = res?.shortPlayEpisodeInfos || [];
-    
     setupBookmark(id, {id, title, intro, total, cover});
 
     const epList = document.getElementById('modalEpisodes');
@@ -163,66 +99,69 @@ async function openDetail(id, title, intro, total, cover, startEp = 1) {
         btn.innerHTML = `<span>EPISODE ${ep.episodeNo || i+1}</span><i class="fa-solid fa-play text-red-600 text-[10px]"></i>`;
         epList.appendChild(btn);
     });
-
-    // Otomatis putar episode terakhir jika klik dari riwayat
-    const idxToPlay = (startEp > 0 && startEp <= epData.length) ? startEp - 1 : 0;
-    if (epData.length > 0) playEpisode(idxToPlay, id, title, total, cover);
+    if (epData.length > 0) playEpisode((startEp <= epData.length ? startEp - 1 : 0), id, title, total, cover);
 }
 
 function playEpisode(index, id, title, total, cover) {
     currentEpIndex = index;
-    const ep = epData[index];
-    if (!ep) return;
-
-    player.src = ep.playVoucher || ep.videoUrl;
+    player.src = epData[index].playVoucher || epData[index].videoUrl;
     player.play();
-    if (playIcon) playIcon.className = "fa-solid fa-pause";
-
-    // Simpan ke Riwayat (Maksimal 6 drama di memori)
-    const histItem = { id, title, totalEpisode: total, lastEp: index + 1, cover, time: Date.now() };
-    history = history.filter(h => h.id !== id);
-    history.unshift(histItem);
+    playIcon.className = "fa-solid fa-pause";
     
-    if (history.length > 6) history.pop();
+    document.querySelectorAll('.bg-red-600\\/20').forEach(b => b.classList.remove('bg-red-600/20'));
+    document.getElementById(`ep-btn-${index}`)?.classList.add('bg-red-600/20');
+
+    // Simpan History & Batasi 6 drama
+    const item = { id, title, totalEpisode: total, lastEp: index + 1, cover, time: Date.now() };
+    history = [item, ...history.filter(h => h.id !== id)].slice(0, 6);
     localStorage.setItem('dramaxin_history', JSON.stringify(history));
 }
 
 function setupBookmark(id, data) {
     let btn = document.getElementById('btnBookmark');
     if (!btn) {
-        const container = document.querySelector('#detailModal .flex.justify-between.items-start');
-        btn = document.createElement('button');
-        btn.id = "btnBookmark";
-        btn.className = "w-10 h-10 bg-black/20 backdrop-blur-md rounded-full flex items-center justify-center ml-2 text-white";
-        container.appendChild(btn);
+        btn = document.createElement('button'); btn.id = "btnBookmark";
+        btn.className = "w-10 h-10 bg-black/20 backdrop-blur-md rounded-full flex items-center justify-center text-white";
+        document.getElementById('playerHeaderRight').prepend(btn);
     }
-    
     const isBookmarked = bookmarks.find(b => b.id === id);
     btn.innerHTML = isBookmarked ? '<i class="fa-solid fa-bookmark text-red-500"></i>' : '<i class="fa-regular fa-bookmark"></i>';
-    
     btn.onclick = () => {
-        if (bookmarks.find(b => b.id === id)) {
-            bookmarks = bookmarks.filter(b => b.id !== id);
-        } else {
-            bookmarks.unshift(data);
-        }
+        bookmarks = isBookmarked ? bookmarks.filter(b => b.id !== id) : [data, ...bookmarks];
         localStorage.setItem('dramaxin_bookmarks', JSON.stringify(bookmarks));
         setupBookmark(id, data);
     };
 }
 
+function togglePlay() {
+    if (player.paused) { player.play(); playIcon.className = "fa-solid fa-pause"; }
+    else { player.pause(); playIcon.className = "fa-solid fa-play ml-1"; }
+}
+
+function toggleFullscreen() {
+    if (player.requestFullscreen) player.requestFullscreen();
+    else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
+}
+
+function changeQuality() {
+    const t = player.currentTime; player.load(); player.currentTime = t; player.play();
+}
+
+function playSibling(dir) {
+    const n = currentEpIndex + dir;
+    if (n >= 0 && n < epData.length) playEpisode(n, history[0].id, history[0].title, history[0].totalEpisode, history[0].cover);
+}
+
 async function apiGet(path) {
     try {
-        const res = await fetch(`${API_BASE}${path}`);
-        const json = await res.json();
-        return json.data || json;
+        const r = await fetch(`${API_BASE}${path}`);
+        const j = await r.json(); return j.data || j;
     } catch (e) { return null; }
 }
 
 function closeModal() {
     document.getElementById('detailModal').classList.add('hidden');
-    player.pause();
-    document.body.style.overflow = "auto";
+    player.pause(); document.body.style.overflow = "auto";
 }
 
 document.addEventListener('DOMContentLoaded', () => switchView('home', document.querySelector('.nav-item')));
