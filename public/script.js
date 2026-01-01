@@ -16,7 +16,7 @@ async function apiGet(path) {
     } catch (e) { return null; }
 }
 
-// --- PLAYER CONTROLS & AUTO-HIDE ---
+// --- PLAYER ENGINE ---
 function showControls() {
     videoControls.classList.remove('opacity-0', 'pointer-events-none');
     videoControls.classList.add('opacity-100', 'pointer-events-auto');
@@ -29,7 +29,9 @@ function showControls() {
     }, 3000);
 }
 
-document.getElementById('videoContainer').addEventListener('click', showControls);
+document.getElementById('videoContainer').addEventListener('click', (e) => {
+    if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') showControls();
+});
 
 function togglePlay() {
     if (player.paused) {
@@ -45,11 +47,8 @@ function togglePlay() {
 
 function toggleFullscreen() {
     const container = document.getElementById('videoContainer');
-    if (!document.fullscreenElement) {
-        container.requestFullscreen?.() || container.webkitRequestFullscreen?.();
-    } else {
-        document.exitFullscreen?.();
-    }
+    if (!document.fullscreenElement) container.requestFullscreen?.() || container.webkitRequestFullscreen?.();
+    else document.exitFullscreen?.();
 }
 
 player.ontimeupdate = () => {
@@ -69,29 +68,19 @@ function formatTime(sec) {
     return `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
 }
 
-function changeQuality() {
-    const t = player.currentTime;
-    player.load();
-    player.currentTime = t;
-    player.play();
-}
-
 function playSibling(dir) {
     const n = currentEpIndex + dir;
     if (n >= 0 && n < epData.length) playEp(n);
 }
 
-// --- NAVIGASI & RENDER ---
+// --- RENDER LOGIC ---
 async function switchView(mode, el) {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('nav-active'));
     if (el) el.classList.add('nav-active');
-    
     const content = document.getElementById('appContent');
     content.innerHTML = '<div class="py-20 text-center animate-pulse text-red-600 font-bold text-xs uppercase">Loading...</div>';
-
     if (mode === 'library') return loadLibrary();
-
-    const path = (mode === 'home' || mode === 'hot') ? '/netshort/theaters' : '/netshort/foryou';
+    const path = (mode === 'foryou') ? '/netshort/foryou' : '/netshort/theaters';
     const data = await apiGet(path);
     renderContent(data, mode);
 }
@@ -100,23 +89,18 @@ function renderContent(data, mode) {
     const content = document.getElementById('appContent');
     content.innerHTML = "";
     let cats = Array.isArray(data) ? data : (data.contentInfos ? [data] : []);
-
-    let displayed = false;
     cats.forEach(cat => {
         const name = (cat.contentName || "").toUpperCase();
-        const isHot = name.includes("VIRAL") || name.includes("HOT") || name.includes("POPULAR") || name.includes("TRENDING");
-        let show = (mode === 'foryou') ? true : (mode === 'hot' ? isHot : !isHot);
-
-        if (show && cat.contentInfos?.length) {
-            const sec = document.createElement('section');
-            sec.className = "mb-8";
-            sec.innerHTML = `<div class="flex items-center gap-2 mb-4"><div class="w-1 h-3 bg-red-600 rounded-full"></div><h2 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">${cat.contentName}</h2></div><div class="grid grid-cols-3 gap-3"></div>`;
-            cat.contentInfos.forEach(item => sec.querySelector('.grid').appendChild(createDramaCard(item)));
-            content.appendChild(sec);
-            displayed = true;
+        const isHot = name.includes("VIRAL") || name.includes("HOT") || name.includes("POPULAR");
+        if ((mode === 'foryou') || (mode === 'hot' ? isHot : !isHot)) {
+            if (cat.contentInfos?.length) {
+                const sec = document.createElement('section');
+                sec.innerHTML = `<h2 class="text-sm font-black text-white uppercase tracking-tighter mb-5 pl-2 border-l-4 border-red-600">${cat.contentName}</h2><div class="grid grid-cols-3 gap-4"></div>`;
+                cat.contentInfos.forEach(item => sec.querySelector('.grid').appendChild(createDramaCard(item)));
+                content.appendChild(sec);
+            }
         }
     });
-    if (!displayed && cats.length > 0) renderContent(cats, 'foryou');
 }
 
 function createDramaCard(item, isHist = false) {
@@ -124,22 +108,30 @@ function createDramaCard(item, isHist = false) {
     const title = item.shortPlayName || item.title || item.bookName;
     const cover = item.cover || item.shortPlayCover;
     const finalCover = cover?.startsWith('http') ? cover : `https://api.sansekai.my.id${cover?.startsWith('/') ? '' : '/'}${cover}`;
+    const totalEp = item.totalEpisode || item.episodeNum || 0;
     
     const div = document.createElement('div');
-    div.className = "drama-card animate-fade-in";
+    div.className = "drama-card";
     div.onclick = () => openDetail(id, title, finalCover, isHist ? item.lastEp : 1);
     div.innerHTML = `
         <div class="card-img-container aspect-[3/4.2]">
             <img src="${finalCover}" class="w-full h-full object-cover" loading="lazy">
             <div class="card-badge glass-dark">
-                ${isHist ? 'EP '+item.lastEp : (item.totalEpisode || item.episodeNum || '??') + ' EP'}
+                <span class="ep-text">${totalEp > 0 ? totalEp + ' EP' : 'Sync...'}</span>
             </div>
         </div>
         <h3 class="mt-3 text-[10px] font-bold text-gray-400 line-clamp-2 leading-snug">${title}</h3>`;
+
+    if (totalEp === 0) fetchActualEpisode(id, div.querySelector('.ep-text'));
     return div;
 }
 
-// --- MODAL & DATA DETAIL ---
+async function fetchActualEpisode(id, el) {
+    const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
+    if (res && res.totalEpisode) el.innerText = res.totalEpisode + " EP";
+}
+
+// --- DETAIL & PLAYER ---
 async function openDetail(id, title, cover, startEp = 1) {
     const modal = document.getElementById('detailModal');
     player.pause(); player.src = "";
@@ -148,16 +140,14 @@ async function openDetail(id, title, cover, startEp = 1) {
     showControls();
 
     document.getElementById('modalTitle').innerText = title;
-    document.getElementById('modalDesc').innerText = "Memuat...";
+    document.getElementById('modalDesc').innerText = "Loading...";
 
     const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
-    const intro = res?.shotIntroduce || "Deskripsi tidak tersedia.";
-    const total = res?.totalEpisode || "0";
     epData = res?.shortPlayEpisodeInfos || [];
-    activeDrama = { id, title, cover, intro, total };
+    activeDrama = { id, title, cover, intro: res?.shotIntroduce || "No Desc", total: res?.totalEpisode || 0 };
 
-    document.getElementById('modalDesc').innerText = intro;
-    document.getElementById('modalTotalEp').innerText = `${total} TOTAL EPISODE`;
+    document.getElementById('modalDesc').innerText = activeDrama.intro;
+    document.getElementById('modalTotalEp').innerText = `${activeDrama.total} EPISODES`;
     updateBookmarkUI();
 
     const epList = document.getElementById('modalEpisodes');
@@ -165,28 +155,40 @@ async function openDetail(id, title, cover, startEp = 1) {
     epData.forEach((ep, i) => {
         const btn = document.createElement('button');
         btn.id = `ep-btn-${i}`;
-        btn.className = "w-full text-left glass p-4 rounded-xl flex justify-between items-center text-xs";
+        btn.className = "ep-btn w-full text-left glass p-4 rounded-2xl flex justify-between items-center text-xs";
         btn.onclick = () => playEp(i);
-        btn.innerHTML = `<span>EPISODE ${ep.episodeNo || i+1}</span><i class="fa-solid fa-play text-red-600 text-[10px]"></i>`;
+        btn.innerHTML = `<span class="font-bold">EPISODE ${ep.episodeNo || i+1}</span><i class="fa-solid fa-play text-red-500 text-[10px]"></i>`;
         epList.appendChild(btn);
     });
 
-    if (epData.length > 0) playEp(startEp - 1);
+    playEp(startEp - 1);
 }
 
 function playEp(idx) {
     if (!epData[idx]) return;
     currentEpIndex = idx;
-    player.src = epData[idx].playVoucher || epData[idx].videoUrl;
+    const ep = epData[idx];
+    
+    // Clear Subtitle
+    const tracks = player.querySelectorAll('track');
+    tracks.forEach(t => t.remove());
+
+    player.src = ep.playVoucher || ep.videoUrl;
+    
+    // Load Subtitle
+    if (ep.subtitleUrl || ep.m3u8SubtitleUrl) {
+        const t = document.createElement('track');
+        t.kind = "subtitles"; t.label = "Indo"; t.srclang = "id"; t.default = true;
+        t.src = ep.subtitleUrl || ep.m3u8SubtitleUrl;
+        player.appendChild(t);
+    }
+
+    player.load();
     player.play();
     playIcon.className = "fa-solid fa-pause";
 
-    document.querySelectorAll('[id^="ep-btn-"]').forEach(b => b.classList.remove('ep-active'));
-    const active = document.getElementById(`ep-btn-${idx}`);
-    if (active) {
-        active.classList.add('ep-active');
-        active.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    document.querySelectorAll('.ep-btn').forEach(b => b.classList.remove('ep-active'));
+    document.getElementById(`ep-btn-${idx}`)?.classList.add('ep-active');
 
     const histItem = { ...activeDrama, lastEp: idx + 1 };
     history = [histItem, ...history.filter(h => h.id !== activeDrama.id)].slice(0, 6);
@@ -196,10 +198,9 @@ function playEp(idx) {
 function updateBookmarkUI() {
     const isBook = bookmarks.find(b => b.id === activeDrama.id);
     document.getElementById('modalAction').innerHTML = `
-        <button onclick="toggleBook()" class="w-10 h-10 glass rounded-full flex items-center justify-center text-white">
-            <i class="fa-${isBook ? 'solid' : 'regular'} fa-bookmark ${isBook ? 'text-red-500' : ''}"></i>
-        </button>
-    `;
+        <button onclick="toggleBook()" class="w-11 h-11 glass rounded-full flex items-center justify-center">
+            <i class="fa-${isBook ? 'solid' : 'regular'} fa-heart ${isBook ? 'text-red-500' : 'text-white'}"></i>
+        </button>`;
 }
 
 function toggleBook() {
@@ -212,24 +213,21 @@ function toggleBook() {
 
 function loadLibrary() {
     const content = document.getElementById('appContent');
-    content.innerHTML = `
-        <div class="space-y-12 pb-20">
-            <section><h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">History</h2><div id="hG" class="grid grid-cols-3 gap-3"></div></section>
-            <section><h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Bookmark</h2><div id="bG" class="grid grid-cols-3 gap-3"></div></section>
-        </div>
-    `;
-    const hG = document.getElementById('hG'), bG = document.getElementById('bG');
-    if (history.length) history.forEach(h => hG.appendChild(createDramaCard(h, true)));
-    if (bookmarks.length) bookmarks.forEach(b => bG.appendChild(createDramaCard(b)));
+    content.innerHTML = `<div class="space-y-10">
+        <section><h2 class="text-xs font-black text-gray-500 uppercase tracking-widest mb-5 pl-2 border-l-4 border-red-600">History</h2><div id="hG" class="grid grid-cols-3 gap-4"></div></section>
+        <section><h2 class="text-xs font-black text-gray-500 uppercase tracking-widest mb-5 pl-2 border-l-4 border-red-600">Favorites</h2><div id="bG" class="grid grid-cols-3 gap-4"></div></section>
+    </div>`;
+    history.forEach(h => document.getElementById('hG').appendChild(createDramaCard(h, true)));
+    bookmarks.forEach(b => document.getElementById('bG').appendChild(createDramaCard(b)));
 }
 
 async function performSearch(q) {
     const content = document.getElementById('appContent');
-    content.innerHTML = '<div class="py-20 text-center text-red-600 font-bold text-xs">MENCARI...</div>';
+    content.innerHTML = '<div class="py-20 text-center text-red-600 font-bold uppercase">Searching...</div>';
     const data = await apiGet(`/netshort/search?query=${encodeURIComponent(q)}`);
     const items = data?.searchCodeSearchResult || [];
-    content.innerHTML = `<h2 class="text-[10px] font-black text-gray-500 mb-6 uppercase tracking-widest">Hasil: ${q}</h2><div id="sG" class="grid grid-cols-3 gap-3 pb-24"></div>`;
-    if (items.length) items.forEach(i => document.getElementById('sG').appendChild(createDramaCard(i)));
+    content.innerHTML = `<h2 class="text-xs font-black text-gray-500 mb-6 uppercase">Results: ${q}</h2><div id="sG" class="grid grid-cols-3 gap-4"></div>`;
+    items.forEach(i => document.getElementById('sG').appendChild(createDramaCard(i)));
 }
 
 function closeModal() {
@@ -239,9 +237,6 @@ function closeModal() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('searchInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') performSearch(e.target.value);
-    });
+    document.getElementById('searchInput').onkeypress = (e) => { if(e.key === 'Enter') performSearch(e.target.value); };
     switchView('home', document.querySelector('.nav-item'));
 });
-
