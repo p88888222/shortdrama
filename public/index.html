@@ -3,23 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DRAMAXIN</title>
+    <title>DRAMAXIN - Premium Short Drama</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0f1117; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0b0d12; -webkit-tap-highlight-color: transparent; }
         .tab-active { color: #ef4444; border-bottom: 3px solid #ef4444; }
         ::-webkit-scrollbar { display: none; }
+        .video-gradient { background: linear-gradient(0deg, rgba(11,13,18,1) 0%, rgba(11,13,18,0) 100%); }
     </style>
 </head>
 <body class="text-gray-200">
-    <header class="sticky top-0 z-40 bg-[#0f1117]/90 backdrop-blur-md border-b border-white/5">
-        <div class="p-4 flex items-center justify-between">
+
+    <header class="sticky top-0 z-40 bg-[#0b0d12]/90 backdrop-blur-xl border-b border-white/5">
+        <div class="p-4 flex items-center justify-between gap-4">
             <h1 class="text-2xl font-black text-red-600 italic tracking-tighter">DRAMAXIN</h1>
-            <div class="bg-white/5 px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
-                <i class="fa-solid fa-search text-[10px] text-gray-500"></i>
-                <input id="searchInput" type="text" placeholder="Cari..." class="bg-transparent border-none outline-none text-xs w-20 focus:w-32 transition-all">
+            <div class="flex-1 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-2">
+                <i class="fa-solid fa-magnifying-glass text-gray-500 text-xs"></i>
+                <input id="searchInput" type="text" placeholder="Cari CEO, Pernikahan..." 
+                       class="bg-transparent border-none outline-none text-xs w-full text-white">
             </div>
         </div>
         <nav class="flex gap-8 px-6 pb-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
@@ -29,34 +32,45 @@
     </header>
 
     <main class="p-4">
-        <h2 id="sectionLabel" class="text-[10px] font-black text-gray-500 mb-4 tracking-widest uppercase">Memuat...</h2>
+        <div class="flex items-center gap-2 mb-4">
+            <div class="w-1 h-3 bg-red-600 rounded-full"></div>
+            <h2 id="sectionLabel" class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Memuat...</h2>
+        </div>
         <div id="mainContainer" class="grid grid-cols-3 gap-3"></div>
     </main>
 
-    <div id="detailModal" class="fixed inset-0 bg-[#0f1117] z-50 hidden flex flex-col h-full">
-        <div class="relative w-full aspect-video bg-black flex items-center justify-center shadow-2xl">
-            <div id="playerContainer" class="w-full h-full hidden">
-                <video id="mainPlayer" class="w-full h-full" playsinline controls></video>
+    <div id="detailModal" class="fixed inset-0 bg-[#0b0d12] z-50 hidden flex flex-col h-full overflow-hidden">
+        <div class="relative w-full bg-black group shadow-2xl" id="videoWrapper" style="max-height: 40vh;">
+            <div id="playerContainer" class="w-full h-full hidden flex items-center justify-center">
+                <video id="mainPlayer" class="max-w-full max-h-full shadow-lg" playsinline controls></video>
             </div>
             <button onclick="closeModal()" class="absolute top-4 left-4 p-2 bg-black/40 rounded-full text-white z-50">
-                <i class="fa-solid fa-xmark w-5 h-5 flex items-center justify-center"></i>
+                <i class="fa-solid fa-chevron-left w-5 h-5 flex items-center justify-center"></i>
             </button>
         </div>
         
-        <div class="flex-1 overflow-y-auto px-5 pt-6 pb-20">
-            <h1 id="modalTitle" class="text-xl font-bold mb-2"></h1>
-            <div class="flex gap-2 mb-4">
-                <span id="modalTotalEp" class="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-1 rounded border border-red-500/20"></span>
-            </div>
-            <p id="modalDesc" class="text-xs text-gray-400 leading-relaxed mb-8 border-l-2 border-red-600 pl-3 italic"></p>
+        <div class="flex-1 overflow-y-auto px-5 pt-4 pb-24">
+            <h1 id="modalTitle" class="text-lg font-bold text-white mb-2"></h1>
             
-            <div class="flex items-center justify-between mb-4 sticky top-0 bg-[#0f1117] py-2 z-10">
-                <span class="text-[10px] font-black tracking-widest text-white">DAFTAR EPISODE</span>
-                <div class="flex gap-2">
-                    <button id="prevBtn" class="bg-white/5 p-2 rounded-lg"><i class="fa-solid fa-chevron-left text-xs"></i></button>
-                    <button id="nextBtn" class="bg-white/5 p-2 rounded-lg"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+            <div class="flex flex-wrap gap-2 mb-4" id="modalLabels">
+                </div>
+
+            <div class="bg-white/5 p-4 rounded-2xl border border-white/5 mb-6">
+                <p id="modalDesc" class="text-xs text-gray-400 leading-relaxed italic"></p>
+                <div class="mt-3 pt-3 border-t border-white/10 flex justify-between items-center">
+                    <span id="modalTotalEp" class="text-[10px] font-black text-red-500 uppercase"></span>
+                    <span class="text-[9px] text-gray-600 font-bold uppercase tracking-widest">Premium Quality</span>
                 </div>
             </div>
+            
+            <div class="flex items-center justify-between mb-4 sticky top-0 bg-[#0b0d12] py-2 z-10 border-b border-white/5">
+                <span class="text-[10px] font-black tracking-widest text-white">EPISODE</span>
+                <div class="flex gap-2">
+                    <button id="prevBtn" class="bg-white/5 p-2 rounded-lg active:bg-red-600"><i class="fa-solid fa-backward-step text-xs text-white"></i></button>
+                    <button id="nextBtn" class="bg-white/5 p-2 rounded-lg active:bg-red-600"><i class="fa-solid fa-forward-step text-xs text-white"></i></button>
+                </div>
+            </div>
+
             <div id="modalEpisodes" class="grid grid-cols-1 gap-3"></div>
         </div>
     </div>
