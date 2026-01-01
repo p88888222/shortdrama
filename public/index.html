@@ -3,71 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NETSHORT CLONE</title>
+    <title>DRAMAXIN</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #0b0d12; color: #e2e8f0; }
-        .tab-active { color: #ef4444; border-bottom: 2px solid #ef4444; }
+        body { background-color: #0b0d12; font-family: sans-serif; }
+        .tab-active { color: #ef4444; border-bottom: 3px solid #ef4444; }
         ::-webkit-scrollbar { display: none; }
-        .video-container { aspect-ratio: 16 / 9; background: black; }
     </style>
 </head>
-<body>
-
-    <header class="sticky top-0 z-40 bg-[#0b0d12]/90 backdrop-blur-md border-b border-white/5">
-        <div class="p-4 flex items-center justify-between gap-3">
-            <h1 class="text-xl font-black text-red-600 tracking-tighter">NETSHORT</h1>
+<body class="text-gray-300">
+    <header class="sticky top-0 z-40 bg-[#0b0d12]/95 backdrop-blur-md border-b border-white/5">
+        <div class="p-4 flex items-center justify-between gap-4">
+            <h1 class="text-xl font-black text-red-600 italic">DRAMAXIN</h1>
             <div class="flex-1 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
-                <i class="fa-solid fa-magnifying-glass text-gray-500 text-xs"></i>
-                <input id="searchInput" type="text" placeholder="Cari judul atau CEO..." 
-                       class="bg-transparent border-none outline-none text-sm w-full text-white">
+                <i class="fa-solid fa-search text-[10px] text-gray-500"></i>
+                <input id="searchInput" type="text" placeholder="Cari CEO, Pernikahan..." class="bg-transparent border-none outline-none text-xs w-full text-white">
             </div>
         </div>
-        <nav class="flex gap-6 px-4 pb-2 text-xs font-bold text-gray-500 uppercase">
-            <button onclick="changeTab('foryou', this)" class="nav-btn tab-active">Hot</button>
-            <button onclick="changeTab('theaters', this)" class="nav-btn">Theater</button>
+        <nav class="flex gap-8 px-6 pb-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
+            <button onclick="changeTab('foryou', this)" class="nav-btn tab-active">For You</button>
+            <button onclick="changeTab('theaters', this)" class="nav-btn">Theaters</button>
         </nav>
     </header>
 
     <main class="p-4">
-        <h2 id="sectionLabel" class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Trending Sekarang</h2>
+        <h2 id="sectionLabel" class="text-[10px] font-bold text-gray-500 mb-4 tracking-widest uppercase italic">Memuat Konten...</h2>
         <div id="mainContainer" class="grid grid-cols-3 gap-3"></div>
     </main>
 
-    <div id="detailModal" class="fixed inset-0 bg-[#0b0d12] z-50 hidden flex flex-col overflow-hidden">
-        
-        <div class="video-container relative flex items-center justify-center shadow-2xl">
-            <video id="mainPlayer" class="w-full h-full" controls playsinline></video>
-            <button onclick="closeModal()" class="absolute top-4 left-4 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white">
-                <i class="fa-solid fa-xmark"></i>
+    <div id="detailModal" class="fixed inset-0 bg-[#0b0d12] z-50 hidden flex flex-col h-full overflow-hidden">
+        <div class="relative w-full aspect-video bg-black flex items-center justify-center shadow-2xl">
+            <video id="mainPlayer" class="w-full h-full" playsinline controls></video>
+            <button onclick="closeModal()" class="absolute top-4 left-4 p-2 bg-black/40 rounded-full text-white z-50">
+                <i class="fa-solid fa-chevron-left w-5 h-5 flex items-center justify-center"></i>
             </button>
         </div>
-
-        <div class="flex-1 overflow-y-auto p-5">
-            <h1 id="modalTitle" class="text-lg font-bold mb-1"></h1>
-            <div id="modalLabels" class="flex flex-wrap gap-1 mb-3"></div>
-            
-            <div class="bg-white/5 p-4 rounded-xl mb-6">
-                <p id="modalDesc" class="text-xs text-gray-400 leading-relaxed"></p>
-                <div class="mt-3 flex justify-between items-center text-[10px] font-bold text-red-500">
-                    <span id="modalTotalEp"></span>
+        <div class="flex-1 overflow-y-auto px-5 pt-6 pb-24">
+            <h1 id="modalTitle" class="text-lg font-bold text-white mb-2 leading-tight"></h1>
+            <div id="modalLabels" class="flex flex-wrap gap-2 mb-4 text-[8px] font-bold"></div>
+            <div class="bg-white/5 p-4 rounded-xl mb-6 border border-white/5">
+                <p id="modalDesc" class="text-xs text-gray-400 leading-relaxed italic"></p>
+                <div class="mt-3 pt-3 border-t border-white/10 flex justify-between">
+                    <span id="modalTotalEp" class="text-[10px] font-bold text-red-500 uppercase"></span>
                 </div>
             </div>
-
-            <div class="flex items-center justify-between mb-4 border-b border-white/10 pb-2">
-                <span class="text-xs font-bold uppercase">Pilih Episode</span>
-                <div class="flex gap-2">
-                    <button id="prevBtn" class="text-sm p-1"><i class="fa-solid fa-chevron-left"></i></button>
-                    <button id="nextBtn" class="text-sm p-1"><i class="fa-solid fa-chevron-right"></i></button>
-                </div>
-            </div>
-
             <div id="modalEpisodes" class="grid grid-cols-1 gap-2"></div>
         </div>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>
