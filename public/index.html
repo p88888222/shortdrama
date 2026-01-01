@@ -20,18 +20,10 @@
     <main id="appContent" class="p-5 space-y-10 min-h-screen"></main>
 
     <nav class="fixed bottom-0 left-0 right-0 z-50 glass-dark border-t border-white/5 px-8 py-4 flex justify-between items-center rounded-t-[32px]">
-        <button onclick="switchView('home', this)" class="nav-item nav-active flex flex-col items-center gap-1 text-gray-400">
-            <i class="fa-solid fa-house-chimney text-xl"></i><span class="text-[9px] font-bold uppercase tracking-widest">Home</span>
-        </button>
-        <button onclick="switchView('foryou', this)" class="nav-item flex flex-col items-center gap-1 text-gray-400">
-            <i class="fa-solid fa-compass text-xl"></i><span class="text-[9px] font-bold uppercase tracking-widest">Discover</span>
-        </button>
-        <button onclick="switchView('hot', this)" class="nav-item flex flex-col items-center gap-1 text-gray-400">
-            <i class="fa-solid fa-fire-flame-curved text-xl"></i><span class="text-[9px] font-bold uppercase tracking-widest">Hot</span>
-        </button>
-        <button onclick="switchView('library', this)" class="nav-item flex flex-col items-center gap-1 text-gray-400">
-            <i class="fa-solid fa-clapperboard text-xl"></i><span class="text-[9px] font-bold uppercase tracking-widest">Library</span>
-        </button>
+        <button onclick="switchView('home', this)" class="nav-item nav-active flex flex-col items-center gap-1 text-gray-400 opacity-40 transition-all"><i class="fa-solid fa-house-chimney text-xl"></i><span class="text-[9px] font-bold uppercase">Home</span></button>
+        <button onclick="switchView('foryou', this)" class="nav-item flex flex-col items-center gap-1 text-gray-400 opacity-40 transition-all"><i class="fa-solid fa-compass text-xl"></i><span class="text-[9px] font-bold uppercase">Discover</span></button>
+        <button onclick="switchView('hot', this)" class="nav-item flex flex-col items-center gap-1 text-gray-400 opacity-40 transition-all"><i class="fa-solid fa-fire text-xl"></i><span class="text-[9px] font-bold uppercase">Hot</span></button>
+        <button onclick="switchView('library', this)" class="nav-item flex flex-col items-center gap-1 text-gray-400 opacity-40 transition-all"><i class="fa-solid fa-clapperboard text-xl"></i><span class="text-[9px] font-bold uppercase">Library</span></button>
     </nav>
 
     <div id="detailModal" class="fixed inset-0 z-[60] bg-[#08090d] hidden flex flex-col overflow-hidden">
