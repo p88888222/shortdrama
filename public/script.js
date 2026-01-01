@@ -9,21 +9,25 @@ const playIcon = document.getElementById('playIcon');
 const videoControls = document.getElementById('videoControls');
 const seekBar = document.getElementById('seekBar');
 
+// --- API HELPER ---
 async function apiGet(path) {
     try {
         const r = await fetch(`${API_BASE}${path}`);
-        const j = await r.json(); return j.data || j;
-    } catch (e) { return null; }
+        const j = await r.json(); 
+        return j.data || j;
+    } catch (e) { 
+        return null; 
+    }
 }
 
-// --- PLAYER ENGINE ---
+// --- PLAYER CONTROLS ---
 function showControls() {
     if (!videoControls) return;
     videoControls.classList.remove('opacity-0', 'pointer-events-none');
     videoControls.classList.add('opacity-100', 'pointer-events-auto');
     clearTimeout(controlTimeout);
     controlTimeout = setTimeout(() => {
-        if (!player.paused) {
+        if (player && !player.paused) {
             videoControls.classList.remove('opacity-100', 'pointer-events-auto');
             videoControls.classList.add('opacity-0', 'pointer-events-none');
         }
@@ -35,14 +39,26 @@ document.getElementById('videoContainer')?.addEventListener('click', (e) => {
 });
 
 function togglePlay() {
-    if (player.paused) { player.play(); playIcon.className = "fa-solid fa-pause"; showControls(); }
-    else { player.pause(); playIcon.className = "fa-solid fa-play ml-1"; showControls(); }
+    if (!player) return;
+    if (player.paused) {
+        player.play();
+        if (playIcon) playIcon.className = "fa-solid fa-pause";
+        showControls();
+    } else {
+        player.pause();
+        if (playIcon) playIcon.className = "fa-solid fa-play ml-1";
+        showControls();
+    }
 }
 
 function toggleFullscreen() {
     const container = document.getElementById('videoContainer');
-    if (!document.fullscreenElement) container.requestFullscreen?.() || container.webkitRequestFullscreen?.();
-    else document.exitFullscreen?.();
+    if (!container) return;
+    if (!document.fullscreenElement) {
+        container.requestFullscreen?.() || container.webkitRequestFullscreen?.();
+    } else {
+        document.exitFullscreen?.();
+    }
 }
 
 if (player) {
@@ -56,7 +72,9 @@ if (player) {
 }
 
 if (seekBar) {
-    seekBar.oninput = () => { player.currentTime = (seekBar.value / 100) * player.duration; };
+    seekBar.oninput = () => { 
+        if (player) player.currentTime = (seekBar.value / 100) * player.duration; 
+    };
 }
 
 function formatTime(sec) {
@@ -70,13 +88,16 @@ function playSibling(dir) {
     if (n >= 0 && n < epData.length) playEp(n);
 }
 
-// --- RENDER LOGIC ---
+// --- CORE LOGIC ---
 async function switchView(mode, el) {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('nav-active'));
     if (el) el.classList.add('nav-active');
+    
     const content = document.getElementById('appContent');
-    content.innerHTML = '<div class="py-20 text-center animate-pulse text-red-600 font-bold text-xs uppercase">Loading...</div>';
+    content.innerHTML = '<div class="py-20 text-center animate-pulse text-red-600 font-bold text-xs uppercase tracking-widest">Sinkronisasi...</div>';
+
     if (mode === 'library') return loadLibrary();
+
     const path = (mode === 'foryou') ? '/netshort/foryou' : '/netshort/theaters';
     const data = await apiGet(path);
     renderContent(data, mode);
@@ -86,16 +107,25 @@ function renderContent(data, mode) {
     const content = document.getElementById('appContent');
     content.innerHTML = "";
     let cats = Array.isArray(data) ? data : (data.contentInfos ? [data] : []);
+
     cats.forEach(cat => {
         const name = (cat.contentName || "").toUpperCase();
-        const isHot = name.includes("VIRAL") || name.includes("HOT") || name.includes("POPULAR");
-        if ((mode === 'foryou') || (mode === 'hot' ? isHot : !isHot)) {
-            if (cat.contentInfos?.length) {
-                const sec = document.createElement('section');
-                sec.innerHTML = `<h2 class="text-sm font-black text-white uppercase tracking-tighter mb-5 pl-2 border-l-4 border-red-600">${cat.contentName}</h2><div class="grid grid-cols-3 gap-4"></div>`;
-                cat.contentInfos.forEach(item => sec.querySelector('.grid').appendChild(createDramaCard(item)));
-                content.appendChild(sec);
-            }
+        const isHot = name.includes("VIRAL") || name.includes("HOT") || name.includes("POPULAR") || name.includes("TRENDING");
+        
+        let show = (mode === 'foryou') ? true : (mode === 'hot' ? isHot : !isHot);
+
+        if (show && cat.contentInfos?.length) {
+            const sec = document.createElement('section');
+            sec.className = "mb-8 animate-fade-in";
+            sec.innerHTML = `
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="w-1 h-3 bg-red-600 rounded-full"></div>
+                    <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">${cat.contentName}</h2>
+                </div>
+                <div class="grid grid-cols-3 gap-3"></div>
+            `;
+            cat.contentInfos.forEach(item => sec.querySelector('.grid').appendChild(createDramaCard(item)));
+            content.appendChild(sec);
         }
     });
 }
@@ -105,8 +135,10 @@ function createDramaCard(item, isHist = false) {
     const title = item.shortPlayName || item.title || item.bookName;
     const cover = item.cover || item.shortPlayCover || item.groupShortPlayCover;
     const finalCover = cover?.startsWith('http') ? cover : `https://api.sansekai.my.id${cover?.startsWith('/') ? '' : '/'}${cover}`;
-    const totalEp = item.totalEpisode || item.episodeNum || 0;
     
+    // Gunakan totalEpisode dari data drama jika ada
+    let totalEp = item.totalEpisode || item.episodeNum || 0;
+
     const div = document.createElement('div');
     div.className = "drama-card";
     div.onclick = () => openDetail(id, title, finalCover, isHist ? item.lastEp : 1);
@@ -117,84 +149,88 @@ function createDramaCard(item, isHist = false) {
                 <span class="ep-badge-text">${totalEp > 0 ? totalEp + ' EP' : 'Sync...'}</span>
             </div>
         </div>
-        <h3 class="mt-3 text-[10px] font-bold text-gray-400 line-clamp-2 leading-snug">${title}</h3>`;
+        <h3 class="mt-3 text-[9px] font-bold text-gray-400 line-clamp-2 leading-tight uppercase">${title}</h3>
+    `;
 
-    if (totalEp === 0) fetchActualEpisode(id, div.querySelector('.ep-badge-text'));
+    // FITUR AUTO-SYNC HALAMAN DEPAN
+    if (totalEp === 0) {
+        fetchActualEpisode(id, div.querySelector('.ep-badge-text'));
+    }
+
     return div;
 }
 
 async function fetchActualEpisode(id, el) {
-    const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
-    if (res && res.totalEpisode && el) el.innerText = res.totalEpisode + " EP";
+    try {
+        const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
+        if (res && res.totalEpisode && el) {
+            el.innerText = res.totalEpisode + " EP";
+        }
+    } catch (e) {}
 }
 
-// --- DETAIL & PLAYER (PERBAIKAN UTAMA) ---
+// --- DETAIL MODAL (DIPERBAIKI) ---
 async function openDetail(id, title, cover, startEp = 1) {
     const modal = document.getElementById('detailModal');
     if (!modal) return;
-    
-    // 1. Bersihkan player dan tampilkan modal
-    player.pause(); player.src = "";
+
+    // Reset UI agar tidak "No Desc"
+    if (player) { player.pause(); player.src = ""; }
     modal.classList.remove('hidden');
     document.body.style.overflow = "hidden";
     showControls();
 
-    // 2. Set judul sementara
     document.getElementById('modalTitle').innerText = title;
-    document.getElementById('modalDesc').innerText = "Memuat data drama...";
+    document.getElementById('modalDesc').innerText = "Memuat deskripsi...";
     document.getElementById('modalTotalEp').innerText = "... EPISODES";
     document.getElementById('modalEpisodes').innerHTML = "";
 
-    // 3. Tarik data detail
+    // Ambil data detail lengkap
     const res = await apiGet(`/netshort/allepisode?shortPlayId=${id}`);
     
-    // Ambil epData dari res.shortPlayEpisodeInfos
+    // Simpan data ke variabel global agar sinkron
     epData = res?.shortPlayEpisodeInfos || [];
-    
-    // Simpan ke activeDrama agar bisa di-bookmark/history
     activeDrama = { 
-        id, title, cover, 
-        intro: res?.shotIntroduce || "Deskripsi tidak tersedia.", 
-        total: res?.totalEpisode || epData.length || 0 
+        id, 
+        title, 
+        cover, 
+        intro: res?.shotIntroduce || "Deskripsi tidak tersedia.",
+        total: res?.totalEpisode || epData.length || 0
     };
 
-    // 4. Update UI dengan data asli
+    // Update UI Detail dengan data asli
     document.getElementById('modalDesc').innerText = activeDrama.intro;
     document.getElementById('modalTotalEp').innerText = `${activeDrama.total} EPISODES`;
     updateBookmarkUI();
 
-    // 5. Render Tombol Episode
     const epList = document.getElementById('modalEpisodes');
-    epList.innerHTML = "";
     if (epData.length > 0) {
         epData.forEach((ep, i) => {
             const btn = document.createElement('button');
             btn.id = `ep-btn-${i}`;
-            btn.className = "ep-btn w-full text-left glass p-4 rounded-2xl flex justify-between items-center text-xs";
+            btn.className = "ep-btn w-full text-left glass p-4 rounded-xl flex justify-between items-center text-xs";
             btn.onclick = () => playEp(i);
             btn.innerHTML = `<span class="font-bold">EPISODE ${ep.episodeNo || i+1}</span><i class="fa-solid fa-play text-red-500 text-[10px]"></i>`;
             epList.appendChild(btn);
         });
-
-        // 6. Mainkan episode yang diminta
         playEp(startEp - 1);
     } else {
-        epList.innerHTML = "<p class='text-center text-gray-500 py-10'>Daftar episode tidak ditemukan.</p>";
+        epList.innerHTML = "<p class='text-xs text-center opacity-30 py-10'>Daftar episode tidak ditemukan.</p>";
     }
 }
 
 function playEp(idx) {
-    if (!epData || !epData[idx]) return;
+    if (!epData || !epData[idx] || !player) return;
     currentEpIndex = idx;
     const ep = epData[idx];
     
-    // Bersihkan Subtitle lama
+    // Clear Subtitle
     const tracks = player.querySelectorAll('track');
     tracks.forEach(t => t.remove());
 
     player.src = ep.playVoucher || ep.videoUrl;
     
-    // Load Subtitle baru jika ada
+    // Load Subtitle baru jika tersedia
     if (ep.subtitleUrl || ep.m3u8SubtitleUrl) {
         const t = document.createElement('track');
         t.kind = "subtitles"; t.label = "Indo"; t.srclang = "id"; t.default = true;
@@ -209,7 +245,7 @@ function playEp(idx) {
     document.querySelectorAll('.ep-btn').forEach(b => b.classList.remove('ep-active'));
     document.getElementById(`ep-btn-${idx}`)?.classList.add('ep-active');
 
-    // Simpan ke riwayat
+    // Save History (Maksimal 6)
     if (activeDrama) {
         const histItem = { ...activeDrama, lastEp: idx + 1 };
         history = [histItem, ...history.filter(h => h.id !== activeDrama.id)].slice(0, 6);
@@ -219,9 +255,9 @@ function playEp(idx) {
 
 function updateBookmarkUI() {
     const isBook = bookmarks.find(b => b.id === activeDrama.id);
-    const actionContainer = document.getElementById('modalAction');
-    if (actionContainer) {
-        actionContainer.innerHTML = `
+    const container = document.getElementById('modalAction');
+    if (container) {
+        container.innerHTML = `
             <button onclick="toggleBook()" class="w-11 h-11 glass rounded-full flex items-center justify-center">
                 <i class="fa-${isBook ? 'solid' : 'regular'} fa-heart ${isBook ? 'text-red-500' : 'text-white'}"></i>
             </button>`;
@@ -239,30 +275,32 @@ function toggleBook() {
 function loadLibrary() {
     const content = document.getElementById('appContent');
     content.innerHTML = `<div class="space-y-10">
-        <section><h2 class="text-xs font-black text-gray-500 uppercase tracking-widest mb-5 pl-2 border-l-4 border-red-600">History</h2><div id="hG" class="grid grid-cols-3 gap-4"></div></section>
-        <section><h2 class="text-xs font-black text-gray-500 uppercase tracking-widest mb-5 pl-2 border-l-4 border-red-600">Favorites</h2><div id="bG" class="grid grid-cols-3 gap-4"></div></section>
+        <section><h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">History</h2><div id="hG" class="grid grid-cols-3 gap-3"></div></section>
+        <section><h2 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Favorites</h2><div id="bG" class="grid grid-cols-3 gap-3"></div></section>
     </div>`;
     if (history.length) history.forEach(h => document.getElementById('hG').appendChild(createDramaCard(h, true)));
     if (bookmarks.length) bookmarks.forEach(b => document.getElementById('bG').appendChild(createDramaCard(b)));
 }
 
 async function performSearch(q) {
+    if (!q) return;
     const content = document.getElementById('appContent');
     content.innerHTML = '<div class="py-20 text-center text-red-600 font-bold uppercase">Searching...</div>';
     const data = await apiGet(`/netshort/search?query=${encodeURIComponent(q)}`);
     const items = data?.searchCodeSearchResult || [];
-    content.innerHTML = `<h2 class="text-xs font-black text-gray-500 mb-6 uppercase">Results: ${q}</h2><div id="sG" class="grid grid-cols-3 gap-4"></div>`;
+    content.innerHTML = `<h2 class="text-[10px] font-black text-gray-500 mb-6 uppercase">Results: ${q}</h2><div id="sG" class="grid grid-cols-3 gap-3 pb-24"></div>`;
     items.forEach(i => document.getElementById('sG').appendChild(createDramaCard(i)));
 }
 
 function closeModal() {
     document.getElementById('detailModal')?.classList.add('hidden');
-    player.pause();
+    if (player) player.pause();
     document.body.style.overflow = "auto";
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('searchInput').onkeypress = (e) => { if(e.key === 'Enter') performSearch(e.target.value); };
+    document.getElementById('searchInput').onkeypress = (e) => { 
+        if(e.key === 'Enter') performSearch(e.target.value); 
+    };
     switchView('home', document.querySelector('.nav-item'));
 });
-
